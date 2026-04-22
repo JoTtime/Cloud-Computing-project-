@@ -8,6 +8,8 @@ import com.example.usermicroservice.dto.response.AuthResponse;
 import com.example.usermicroservice.dto.request.LoginRequest;
 import com.example.usermicroservice.dto.request.SignupRequest;
 import com.example.usermicroservice.dto.response.UserResponse;
+import com.example.usermicroservice.integration.patient.PatientServiceClient;
+import com.example.usermicroservice.Entity.UserType;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -20,15 +22,18 @@ public class AuthService {
     private final UserAccountRepository userAccountRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final PatientServiceClient patientServiceClient;
 
     public AuthService(
             UserAccountRepository userAccountRepository,
             PasswordEncoder passwordEncoder,
-            JwtService jwtService
+            JwtService jwtService,
+            PatientServiceClient patientServiceClient
     ) {
         this.userAccountRepository = userAccountRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
+        this.patientServiceClient = patientServiceClient;
     }
 
     @Transactional
@@ -48,7 +53,15 @@ public class AuthService {
         user.setUserType(request.getUserType());
         user.setVerified(false);
 
+        if (request.getUserType() == UserType.patient) {
+            validatePatientSignupFields(request);
+        }
+
         userAccountRepository.save(user);
+
+        if (request.getUserType() == UserType.patient) {
+            patientServiceClient.createPatientFromSignup(request);
+        }
 
         String token = jwtService.generateToken(user);
         return AuthResponse.ok(
@@ -92,5 +105,14 @@ public class AuthService {
         }
         String t = s.trim();
         return t.isEmpty() ? null : t;
+    }
+
+    private static void validatePatientSignupFields(SignupRequest request) {
+        if (request.getDateOfBirth() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "dateOfBirth is required for patient signup");
+        }
+        if (request.getGender() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "gender is required for patient signup");
+        }
     }
 }

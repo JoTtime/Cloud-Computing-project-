@@ -5,6 +5,7 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import java.time.LocalDate;
 
 public class SignupRequest {
 
@@ -33,6 +34,10 @@ public class SignupRequest {
 
     @NotNull
     private UserType userType;
+
+    private LocalDate dateOfBirth;
+
+    private PatientGender gender;
 
     public String getFirstName() {
         return firstName;
@@ -88,5 +93,21 @@ public class SignupRequest {
 
     public void setUserType(UserType userType) {
         this.userType = userType;
+    }
+
+    public LocalDate getDateOfBirth() {
+        return dateOfBirth;
+    }
+
+    public void setDateOfBirth(LocalDate dateOfBirth) {
+        this.dateOfBirth = dateOfBirth;
+    }
+
+    public PatientGender getGender() {
+        return gender;
+    }
+
+    public void setGender(PatientGender gender) {
+        this.gender = gender;
     }
 }
