@@ -1,0 +1,151 @@
+databases:
+  - name: medconnect-db
+    databaseName: medconnect
+    user: medconnect
+    plan: free
+
+services:
+  - type: web
+    name: usermicroservice
+    runtime: java
+    plan: free
+    rootDir: usermicroservice
+    buildCommand: mvn clean package -DskipTests
+    startCommand: java -jar target/*.jar --server.port=$PORT
+    envVars:
+      - key: SPRING_CLOUD_DISCOVERY_ENABLED
+        value: false
+      - key: EUREKA_CLIENT_ENABLED
+        value: false
+      - key: MEDCONNECT_DATABASE_CREATE_IF_NOT_EXISTS
+        value: false
+      - key: SPRING_DATASOURCE_URL
+        fromDatabase:
+          name: medconnect-db
+          property: connectionString
+      - key: SPRING_DATASOURCE_USERNAME
+        fromDatabase:
+          name: medconnect-db
+          property: user
+      - key: SPRING_DATASOURCE_PASSWORD
+        fromDatabase:
+          name: medconnect-db
+          property: password
+      - key: JWT_SECRET
+        generateValue: true
+      - key: APP_CORS_ALLOWED_ORIGINS
+        sync: false
+
+  - type: web
+    name: doctormicroservice
+    runtime: java
+    plan: free
+    rootDir: doctormicroservice
+    buildCommand: mvn clean package -DskipTests
+    startCommand: java -jar target/*.jar --server.port=$PORT
+    envVars:
+      - key: SPRING_CLOUD_DISCOVERY_ENABLED
+        value: false
+      - key: EUREKA_CLIENT_ENABLED
+        value: false
+      - key: MEDCONNECT_DATABASE_CREATE_IF_NOT_EXISTS
+        value: false
+      - key: SPRING_DATASOURCE_URL
+        fromDatabase:
+          name: medconnect-db
+          property: connectionString
+      - key: SPRING_DATASOURCE_USERNAME
+        fromDatabase:
+          name: medconnect-db
+          property: user
+      - key: SPRING_DATASOURCE_PASSWORD
+        fromDatabase:
+          name: medconnect-db
+          property: password
+      - key: JWT_SECRET
+        sync: false
+      - key: APP_CORS_ALLOWED_ORIGINS
+        sync: false
+
+  - type: web
+    name: patientmicroservice
+    runtime: java
+    plan: free
+    rootDir: patientmicroservice
+    buildCommand: mvn clean package -DskipTests
+    startCommand: java -jar target/*.jar --server.port=$PORT
+    envVars:
+      - key: SPRING_CLOUD_DISCOVERY_ENABLED
+        value: false
+      - key: EUREKA_CLIENT_ENABLED
+        value: false
+      - key: MEDCONNECT_DATABASE_CREATE_IF_NOT_EXISTS
+        value: false
+      - key: SPRING_DATASOURCE_URL
+        fromDatabase:
+          name: medconnect-db
+          property: connectionString
+      - key: SPRING_DATASOURCE_USERNAME
+        fromDatabase:
+          name: medconnect-db
+          property: user
+      - key: SPRING_DATASOURCE_PASSWORD
+        fromDatabase:
+          name: medconnect-db
+          property: password
+      - key: JWT_SECRET
+        sync: false
+      - key: APP_CORS_ALLOWED_ORIGINS
+        sync: false
+
+  - type: web
+    name: appointmentmicroservice
+    runtime: java
+    plan: free
+    rootDir: appointmentmicroservice
+    buildCommand: mvn clean package -DskipTests
+    startCommand: java -jar target/*.jar --server.port=$PORT
+    envVars:
+      - key: SPRING_CLOUD_DISCOVERY_ENABLED
+        value: false
+      - key: EUREKA_CLIENT_ENABLED
+        value: false
+      - key: MEDCONNECT_DATABASE_CREATE_IF_NOT_EXISTS
+        value: false
+      - key: SPRING_DATASOURCE_URL
+        fromDatabase:
+          name: medconnect-db
+          property: connectionString
+      - key: SPRING_DATASOURCE_USERNAME
+        fromDatabase:
+          name: medconnect-db
+          property: user
+      - key: SPRING_DATASOURCE_PASSWORD
+        fromDatabase:
+          name: medconnect-db
+          property: password
+      - key: JWT_SECRET
+        sync: false
+      - key: APP_CORS_ALLOWED_ORIGINS
+        sync: false
+
+  - type: web
+    name: medconnect-frontend
+    runtime: static
+    plan: free
+    rootDir: Frontend
+    buildCommand: npm ci && npm run build:render
+    staticPublishPath: dist/med-connect/browser
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: USER_API_URL
+        sync: false
+      - key: APPOINTMENT_API_URL
+        sync: false
+      - key: DOCTOR_API_URL
+        sync: false
+      - key: PATIENT_API_URL
+        sync: false

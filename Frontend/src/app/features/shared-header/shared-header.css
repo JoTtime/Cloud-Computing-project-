@@ -576,6 +576,36 @@
   background: #9ca3af;
 }
 
+.notification-item {
+  position: relative; /* needed for button positioning */
+}
+
+.btn-delete-notification {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  color: #94a3b8;
+  opacity: 0;
+  transition: opacity 0.2s, color 0.2s, background 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.notification-item:hover .btn-delete-notification {
+  opacity: 1;
+}
+
+.btn-delete-notification:hover {
+  color: #ef4444;
+  background: #fee2e2;
+}
+
 /* Pending Badge for Find Doctors */
 .pending-badge {
   display: inline-flex;

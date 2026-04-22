@@ -1,6 +1,7 @@
 // frontend/src/app/services/appointment.service.ts
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { environment } from '../../environments/environment';
 import { Observable } from 'rxjs';
 import { tap, catchError } from 'rxjs/operators';
 import { throwError } from 'rxjs';
@@ -50,7 +51,7 @@ export interface AppointmentResponse {
   providedIn: 'root',
 })
 export class AppointmentService {
-  private apiUrl = 'http://localhost:8086/api/appointments';
+  private apiUrl = `${environment.appointmentApiUrl}/appointments`;
 
   constructor(private http: HttpClient) {}
 

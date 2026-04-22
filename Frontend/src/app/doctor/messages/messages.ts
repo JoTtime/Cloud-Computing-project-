@@ -22,7 +22,8 @@ interface DisplayMessage {
   styleUrl: './messages.css',
 })
 export class Messages implements AfterViewChecked, OnInit {
-  doctorName: string = '';
+  userName: string = '';
+  currentUserRole: 'doctor' | 'patient' = 'doctor';
   currentUserId: string = '';
 
   @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
@@ -71,9 +72,10 @@ export class Messages implements AfterViewChecked, OnInit {
     const storedUser = localStorage.getItem('currentUser');
     if (storedUser) {
       const user = JSON.parse(storedUser);
-      this.currentUserId = user.id || user._id;
-      this.doctorName = `Dr. ${user.firstName} ${user.lastName}`;
-      console.log('👨‍⚕️ Doctor loaded:', this.doctorName, 'ID:', this.currentUserId);
+      this.currentUserId = user.userId || user.id || user._id;
+      this.currentUserRole = user.userType === 'patient' ? 'patient' : 'doctor';
+      this.userName = `${user.firstName} ${user.lastName}`;
+      console.log('👤 User loaded:', this.userName, 'ID:', this.currentUserId, 'Role:', this.currentUserRole);
     }
   }
 
@@ -328,6 +330,10 @@ export class Messages implements AfterViewChecked, OnInit {
       conv.name.toLowerCase().includes(query) ||
       conv.lastMessage.toLowerCase().includes(query)
     );
+  }
+
+  get profileActionLabel(): string {
+    return this.currentUserRole === 'doctor' ? 'View Patient Profile' : 'View Doctor Profile';
   }
 
 

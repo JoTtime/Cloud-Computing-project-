@@ -1,6 +1,6 @@
 <!-- messages.html -->
 <div class="messages-container">
-  <app-shared-header [userType]="'doctor'" [userName]="doctorName"></app-shared-header>
+  <app-shared-header [userType]="currentUserRole" [userName]="userName"></app-shared-header>
 
   <main class="messages-main">
     <!-- Page Header -->
@@ -100,7 +100,7 @@
               <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
               <circle cx="12" cy="12" r="3"/>
             </svg>
-            View Patient Profile
+            {{ profileActionLabel }}
           </button>
         </div>
 

@@ -1,14 +1,15 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { SharedHeader } from '../../features/shared-header/shared-header';
 import { RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
-import { forkJoin } from 'rxjs';
+import { forkJoin, Subscription } from 'rxjs';
 import { UploadDoc, DocumentResponse } from '../../services/upload-doc';
 import { ConnectionService } from '../../services/connection';
 import { AppointmentService, Appointment as AppointmentModel } from '../../services/appointment.service';
 import { PatientProfileService } from '../../services/patient-profile';
+import { NotificationService } from '../../services/notification';
 
 
 
@@ -63,7 +64,7 @@ interface CalendarDay {
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.css',
 })
-export class Dashboard implements OnInit{
+export class Dashboard implements OnInit, OnDestroy {
 
    userName: string = '';
   loading: boolean = true;
@@ -105,6 +106,7 @@ export class Dashboard implements OnInit{
 
   recentDocuments: Document[] = [];
   healthSummary: HealthInfo[] = [];
+  private notificationRealtimeSubscription?: Subscription;
 
   healthTip = {
     title: 'Health Tip of the Day',
@@ -136,12 +138,25 @@ export class Dashboard implements OnInit{
     private uploadDocService: UploadDoc,
     private connectionService: ConnectionService,
     private appointmentService: AppointmentService,
-    private patientProfileService: PatientProfileService
+    private patientProfileService: PatientProfileService,
+    private notificationService: NotificationService
   ) {}
 
   ngOnInit(): void {
     this.loadUserData();
     this.loadDashboardData();
+    this.notificationService.startRealtime();
+    this.notificationRealtimeSubscription = this.notificationService.realtime$.subscribe((event) => {
+      if (event.eventName === 'notification' && this.isConnectionNotification(event.data?.type)) {
+        this.refreshConnectionStats();
+      }
+    });
+  }
+
+  ngOnDestroy(): void {
+    if (this.notificationRealtimeSubscription) {
+      this.notificationRealtimeSubscription.unsubscribe();
+    }
   }
 
   loadUserData(): void {
@@ -247,6 +262,23 @@ export class Dashboard implements OnInit{
     this.stats[1].subtitle = activeCount > 0 
       ? `${activeCount} active` 
       : 'No active connections';
+  }
+
+  private refreshConnectionStats(): void {
+    this.connectionService.getPatientConnections().subscribe({
+      next: (response) => {
+        if (response.success) {
+          this.processConnections(response.connections || []);
+        }
+      },
+      error: (error) => {
+        console.error('❌ Error refreshing patient connections:', error);
+      }
+    });
+  }
+
+  private isConnectionNotification(type?: string): boolean {
+    return type === 'CONNECTION_REQUEST' || type === 'CONNECTION_ACCEPTED' || type === 'CONNECTION_REJECTED';
   }
 
   processAppointments(appointments: AppointmentModel[]): void {

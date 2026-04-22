@@ -42,11 +42,19 @@ export class Step3 {
 
     // Get all onboarding data
     const profileData = this.onboardingService.getOnboardingData();
+    const storedUser = localStorage.getItem('currentUser');
+    const currentUser = storedUser ? JSON.parse(storedUser) : null;
+    const payload = {
+      ...profileData,
+      firstName: currentUser?.firstName,
+      lastName: currentUser?.lastName,
+      email: currentUser?.email
+    };
 
-    console.log('📝 Submitting profile data:', profileData);
+    console.log('📝 Submitting profile data:', payload);
 
     // Step 1: Update doctor profile
-    this.doctorProfileService.updateProfile(profileData).subscribe({
+    this.doctorProfileService.updateProfile(payload).subscribe({
       next: (response) => {
         console.log('✅ Profile updated:', response);
         
@@ -101,7 +109,10 @@ export class Step3 {
         
         // Update localStorage with verified user
         if (completeResponse.user) {
-          localStorage.setItem('currentUser', JSON.stringify(completeResponse.user));
+          const storedUser = localStorage.getItem('currentUser');
+          const currentUser = storedUser ? JSON.parse(storedUser) : {};
+          const mergedUser = { ...(currentUser ?? {}), ...completeResponse.user };
+          localStorage.setItem('currentUser', JSON.stringify(mergedUser));
         }
         
         this.onboardingService.nextStep(); // Go to success step

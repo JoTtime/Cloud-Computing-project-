@@ -90,7 +90,7 @@ export class FindDoctors implements OnInit {
     const storedUser = localStorage.getItem('currentUser');
     if (storedUser) {
       const user = JSON.parse(storedUser);
-      this.currentUserId = user.id || user._id;
+      this.currentUserId = user.userId || user.id || user._id;
       this.userName = `${user.firstName} ${user.lastName}`;
       console.log('👤 Patient loaded:', this.userName, 'ID:', this.currentUserId);
     }

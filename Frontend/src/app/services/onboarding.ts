@@ -41,6 +41,7 @@ export class OnboardingService {
 
   // Store onboarding data
   private onboardingData: OnboardingData = {};
+  private readonly storageKey = 'onboardingData';
   
   // Track completion in memory instead of localStorage
   private onboardingComplete = false;
@@ -65,23 +66,31 @@ export class OnboardingService {
   // Methods to save data from each step
   saveStep1Data(data: Partial<OnboardingData>) {
     this.onboardingData = { ...this.onboardingData, ...data };
+    this.persistData();
   }
 
   saveStep2Data(data: Partial<OnboardingData>) {
     this.onboardingData = { ...this.onboardingData, ...data };
+    this.persistData();
   }
 
   saveStep3Data(data: Partial<OnboardingData>) {
     this.onboardingData = { ...this.onboardingData, ...data };
+    this.persistData();
   }
 
   getOnboardingData(): OnboardingData {
-  const raw = localStorage.getItem('onboardingData');
-  return raw ? JSON.parse(raw) : {};
+    if (Object.keys(this.onboardingData).length > 0) {
+      return this.onboardingData;
+    }
+    const raw = localStorage.getItem(this.storageKey);
+    this.onboardingData = raw ? JSON.parse(raw) : {};
+    return this.onboardingData;
   }
 
   clearData() {
     this.onboardingData = {};
+    localStorage.removeItem(this.storageKey);
   }
 
   markComplete() {
@@ -99,6 +108,7 @@ export class OnboardingService {
     } else {
       this.close();
       this.markComplete();
+      this.clearData();
     }
   }
 
@@ -107,6 +117,10 @@ export class OnboardingService {
     if (step > 1) {
       this.currentStepSubject.next(step - 1);
     }
+  }
+
+  private persistData(): void {
+    localStorage.setItem(this.storageKey, JSON.stringify(this.onboardingData));
   }
   
 }

@@ -1,9 +1,9 @@
-import { Component, Input , OnInit , OnDestroy} from '@angular/core';
+import { Component, Input, OnInit, OnDestroy } from '@angular/core';
 import { Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
-import { RouterModule } from '@angular/router'
+import { RouterModule } from '@angular/router';
 import { NotificationService, Notification } from '../../services/notification';
-import { ConnectionService} from '../../services/connection';
+import { ConnectionService } from '../../services/connection';
 import { Subscription } from 'rxjs';
 import { AppointmentService } from '../../services/appointment.service';
 
@@ -14,7 +14,7 @@ import { AppointmentService } from '../../services/appointment.service';
   templateUrl: './shared-header.html',
   styleUrl: './shared-header.css',
 })
-export class SharedHeader  implements OnInit, OnDestroy{
+export class SharedHeader implements OnInit, OnDestroy {
   @Input() userType: 'patient' | 'doctor' = 'patient';
   @Input() userName: string = '';
 
@@ -27,10 +27,10 @@ export class SharedHeader  implements OnInit, OnDestroy{
     isDoctor: false
   };
 
-  // Notifications
   notifications: Notification[] = [];
   unreadCount: number = 0;
   private unreadCountSubscription?: Subscription;
+  private notificationsRealtimeSubscription?: Subscription;
 
   constructor(
     private router: Router,
@@ -42,17 +42,23 @@ export class SharedHeader  implements OnInit, OnDestroy{
   ngOnInit(): void {
     this.loadUserFromAuth();
     this.loadNotifications();
-    
+
     this.unreadCountSubscription = this.notificationService.unreadCount$.subscribe(
       count => this.unreadCount = count
     );
-    
+    this.notificationsRealtimeSubscription = this.notificationService.realtime$.subscribe(() => {
+      this.loadNotifications();
+    });
+
     this.notificationService.getUnreadCount().subscribe();
   }
 
   ngOnDestroy(): void {
     if (this.unreadCountSubscription) {
       this.unreadCountSubscription.unsubscribe();
+    }
+    if (this.notificationsRealtimeSubscription) {
+      this.notificationsRealtimeSubscription.unsubscribe();
     }
   }
 
@@ -62,7 +68,7 @@ export class SharedHeader  implements OnInit, OnDestroy{
       const user = JSON.parse(storedUser);
       this.userName = `${user.firstName} ${user.lastName}`;
       this.userType = user.userType;
-      
+
       this.userRoles = {
         isPatient: user.userType === 'patient',
         isDoctor: user.userType === 'doctor'
@@ -75,6 +81,8 @@ export class SharedHeader  implements OnInit, OnDestroy{
       next: (response) => {
         if (response.success && response.notifications) {
           this.notifications = response.notifications;
+          const unread = this.notifications.filter(n => !n.isRead).length;
+          this.unreadCount = unread;
           console.log('Loaded notifications:', this.notifications);
         }
       },
@@ -129,9 +137,21 @@ export class SharedHeader  implements OnInit, OnDestroy{
     }
   }
 
+  deleteNotification(notification: Notification, event: Event): void {
+    event.stopPropagation();
+    this.notificationService.deleteNotification(notification._id).subscribe({
+      next: () => {
+        this.notifications = this.notifications.filter(n => n._id !== notification._id);
+      },
+      error: (error) => {
+        console.error('Error deleting notification:', error);
+      }
+    });
+  }
+
   handleConnectionResponse(notification: Notification, action: 'accept' | 'reject'): void {
     console.log('=== Handling Connection Response ===');
-    
+
     if (!notification.relatedConnection) {
       alert('Error: Connection information is missing');
       return;
@@ -161,7 +181,7 @@ export class SharedHeader  implements OnInit, OnDestroy{
 
   handleAppointmentResponse(notification: Notification, action: 'accept' | 'reject'): void {
     console.log('=== Handling Appointment Response ===');
-    
+
     if (!notification.relatedAppointment) {
       alert('Error: Appointment information is missing');
       return;
@@ -241,5 +261,3 @@ export class SharedHeader  implements OnInit, OnDestroy{
     this.router.navigate(['/login']);
   }
 }
-
-

@@ -49,7 +49,7 @@ export interface PatientProfile {
 })
 export class PatientProfileService {
 
-  private apiUrl = `${environment.apiUrl}/patients`;
+  private apiUrl = `${environment.patientApiUrl}/patients`;
 
   constructor(private http: HttpClient) {}
 

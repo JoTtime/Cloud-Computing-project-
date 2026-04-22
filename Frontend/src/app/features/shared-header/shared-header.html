@@ -9,12 +9,13 @@
       </div>
       <span class="logo-text">Med-Connect</span>
     </div>
-    
+
     <!-- Patient Navigation -->
     <nav class="main-nav" *ngIf="userType === 'patient'">
       <a routerLink="/patient-dashboard" routerLinkActive="active">Dashboard</a>
       <a routerLink="/medical-records" routerLinkActive="active">My Records</a>
       <a routerLink="/findDoctors" routerLinkActive="active">Find Doctors</a>
+      <a routerLink="/patient-messages" routerLinkActive="active">Messages</a>
       <a routerLink="/appointment" routerLinkActive="active">Appointments</a>
     </nav>
 
@@ -47,8 +48,8 @@
           <div class="dropdown-header">
             <span class="dropdown-title">Switch Role</span>
           </div>
-          <button 
-            class="dropdown-item" 
+          <button
+            class="dropdown-item"
             [class.active]="userType === 'patient'"
             (click)="switchRole('patient')">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -60,8 +61,8 @@
               <polyline points="20 6 9 17 4 12"/>
             </svg>
           </button>
-          <button 
-            class="dropdown-item" 
+          <button
+            class="dropdown-item"
             [class.active]="userType === 'doctor'"
             (click)="switchRole('doctor')">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -96,12 +97,12 @@
           </div>
 
           <div class="notifications-list" *ngIf="notifications.length > 0">
-            <div 
-              *ngFor="let notification of notifications" 
+            <div
+              *ngFor="let notification of notifications"
               class="notification-item"
               [class.unread]="!notification.isRead"
               (click)="markNotificationAsRead(notification)">
-              
+
               <div class="notification-icon" [ngClass]="notification.type">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path [attr.d]="getNotificationIcon(notification.type)"/>
@@ -114,13 +115,13 @@
 
                 <!-- Connection Request Actions (for doctors) -->
                 <div class="notification-actions" *ngIf="notification.type === 'CONNECTION_REQUEST' && notification.relatedConnection?.status === 'pending'">
-                  <button 
-                    class="btn-accept" 
+                  <button
+                    class="btn-accept"
                     (click)="handleConnectionResponse(notification, 'accept'); $event.stopPropagation()">
                     Accept
                   </button>
-                  <button 
-                    class="btn-reject" 
+                  <button
+                    class="btn-reject"
                     (click)="handleConnectionResponse(notification, 'reject'); $event.stopPropagation()">
                     Decline
                   </button>
@@ -128,13 +129,13 @@
 
                 <!-- Appointment Request Actions (for doctors) -->
                 <div class="notification-actions" *ngIf="notification.type === 'APPOINTMENT_REQUEST' && notification.relatedAppointment?.status === 'pending'">
-                  <button 
-                    class="btn-accept" 
+                  <button
+                    class="btn-accept"
                     (click)="handleAppointmentResponse(notification, 'accept'); $event.stopPropagation()">
                     Accept
                   </button>
-                  <button 
-                    class="btn-reject" 
+                  <button
+                    class="btn-reject"
                     (click)="handleAppointmentResponse(notification, 'reject'); $event.stopPropagation()">
                     Decline
                   </button>
@@ -142,6 +143,19 @@
               </div>
 
               <div class="unread-indicator" *ngIf="!notification.isRead"></div>
+
+              <!-- Delete button -->
+              <button
+                class="btn-delete-notification"
+                (click)="deleteNotification(notification, $event)"
+                title="Delete">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="3 6 5 6 21 6"/>
+                  <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                  <path d="M10 11v6M14 11v6"/>
+                  <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+                </svg>
+              </button>
             </div>
           </div>
 
@@ -180,9 +194,9 @@
               </div>
             </div>
           </div>
-          
+
           <div class="dropdown-divider"></div>
-          
+
           <button class="dropdown-item" (click)="goToSettings()">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <circle cx="12" cy="12" r="3"/>
@@ -193,9 +207,9 @@
             </svg>
             <span>Account Settings</span>
           </button>
-          
+
           <div class="dropdown-divider"></div>
-          
+
           <button class="dropdown-item logout-item" (click)="logout()">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
