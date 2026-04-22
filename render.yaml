@@ -7,11 +7,10 @@ databases:
 services:
   - type: web
     name: usermicroservice
-    runtime: java
+    runtime: docker
     plan: free
     rootDir: usermicroservice
-    buildCommand: mvn clean package -DskipTests
-    startCommand: java -jar target/*.jar --server.port=$PORT
+    dockerfilePath: ./Dockerfile
     envVars:
       - key: SPRING_CLOUD_DISCOVERY_ENABLED
         value: false
@@ -38,11 +37,10 @@ services:
 
   - type: web
     name: doctormicroservice
-    runtime: java
+    runtime: docker
     plan: free
     rootDir: doctormicroservice
-    buildCommand: mvn clean package -DskipTests
-    startCommand: java -jar target/*.jar --server.port=$PORT
+    dockerfilePath: ./Dockerfile
     envVars:
       - key: SPRING_CLOUD_DISCOVERY_ENABLED
         value: false
@@ -69,11 +67,10 @@ services:
 
   - type: web
     name: patientmicroservice
-    runtime: java
+    runtime: docker
     plan: free
     rootDir: patientmicroservice
-    buildCommand: mvn clean package -DskipTests
-    startCommand: java -jar target/*.jar --server.port=$PORT
+    dockerfilePath: ./Dockerfile
     envVars:
       - key: SPRING_CLOUD_DISCOVERY_ENABLED
         value: false
@@ -100,11 +97,10 @@ services:
 
   - type: web
     name: appointmentmicroservice
-    runtime: java
+    runtime: docker
     plan: free
     rootDir: appointmentmicroservice
-    buildCommand: mvn clean package -DskipTests
-    startCommand: java -jar target/*.jar --server.port=$PORT
+    dockerfilePath: ./Dockerfile
     envVars:
       - key: SPRING_CLOUD_DISCOVERY_ENABLED
         value: false
