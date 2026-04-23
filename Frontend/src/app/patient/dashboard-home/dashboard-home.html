@@ -1,0 +1,172 @@
+<div class="page-loading" *ngIf="loading">
+  <div class="loading-pulse"></div>
+</div>
+
+<div class="content-inner" *ngIf="!loading">
+
+  <!-- HERO BANNER (3‑column layout) -->
+  <section class="hero-banner">
+    <div class="hero-left">
+      <div class="hero-status-pill">
+        <span class="status-pulse"></span>
+        {{ today | date:'EEEE, MMMM d' }} &middot; All systems healthy
+      </div>
+      <h1 class="hero-greeting">{{ greeting }},<br>{{ userName }}.</h1>
+    </div>
+
+    <div class="hero-mid">
+      <p class="hero-sub">
+        You have <strong>{{ upcomingAppointmentsCount }} upcoming appointment{{ upcomingAppointmentsCount !== 1 ? 's' : '' }}</strong>
+        and <strong>{{ totalDocumentsCount }} document{{ totalDocumentsCount !== 1 ? 's' : '' }}</strong> on record.
+      </p>
+    </div>
+
+    <div class="hero-right">
+      <button class="hero-btn hero-btn--primary" [routerLink]="'/patient/appointment'">
+        View my appointments →
+      </button>
+      <button class="hero-btn hero-btn--ghost" (click)="openUploadModal()">
+        Upload document
+      </button>
+    </div>
+  </section>
+
+  <input type="file" #fileUpload hidden (change)="onFileSelected($event)" accept=".pdf,.jpg,.png,.docx,.txt">
+
+  <!-- STAT STRIP (admin-style stats) -->
+  <section class="stat-strip">
+    <div class="stat-tile" *ngFor="let stat of adminStats">
+      <div class="stat-tile__header">
+        <span class="stat-tile__label">{{ stat.title }}</span>
+        <div class="stat-tile__icon" [style.background]="stat.bgColor">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" [attr.stroke]="stat.iconColor" stroke-width="2">
+            <ng-container [ngSwitch]="stat.iconType">
+              <g *ngSwitchCase="'users'">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                <circle cx="9" cy="7" r="4"/>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+              </g>
+              <g *ngSwitchCase="'calendar'">
+                <rect x="3" y="4" width="18" height="18" rx="2"/>
+                <line x1="16" y1="2" x2="16" y2="6"/>
+                <line x1="8" y1="2" x2="8" y2="6"/>
+                <line x1="3" y1="10" x2="21" y2="10"/>
+              </g>
+              <g *ngSwitchCase="'doctors'">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+                <circle cx="9" cy="7" r="4"/>
+                <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+              </g>
+              <g *ngSwitchCase="'revenue'">
+                <rect x="2" y="5" width="20" height="14" rx="2"/>
+                <line x1="2" y1="10" x2="22" y2="10"/>
+              </g>
+            </ng-container>
+          </svg>
+        </div>
+      </div>
+      <div class="stat-tile__value">{{ stat.value }}</div>
+      <div class="stat-tile__trend" [class.trend--down]="!stat.trendUp">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>
+        </svg>
+        {{ stat.trend }}
+      </div>
+    </div>
+  </section>
+
+  <!-- MID ROW: Recent Documents + Recent Activity -->
+  <div class="mid-row">
+    <!-- Recent Documents Card -->
+    <section class="schedule-card">
+      <div class="card-head">
+        <div>
+          <h2 class="card-title">Recent Documents</h2>
+          <p class="card-sub">{{ recentDocuments.length }} of {{ totalDocumentsCount }} total records</p>
+        </div>
+        <button class="view-all-btn" (click)="viewAllDocuments()">View all</button>
+      </div>
+
+      <div class="schedule-list" *ngIf="recentDocuments.length > 0">
+        <div class="schedule-item" *ngFor="let doc of recentDocuments" (click)="viewDocument(doc.id)">
+          <div class="doc-thumb" [style.background]="doc.categoryColor + '18'">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" [attr.stroke]="doc.categoryColor" stroke-width="2">
+              <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+              <polyline points="14 2 14 8 20 8"/>
+            </svg>
+          </div>
+          <div class="apt-info">
+            <p class="apt-name">{{ doc.title }}</p>
+            <p class="apt-doctor">{{ doc.date }}</p>
+          </div>
+          <div class="apt-tag" [style.background]="doc.categoryColor + '18'" [style.color]="doc.categoryColor">
+            {{ doc.category }}
+          </div>
+          <button class="apt-more" (click)="viewDocument(doc.id); $event.stopPropagation()">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="empty-schedule" *ngIf="recentDocuments.length === 0">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#c4cdd6" stroke-width="1.5">
+          <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+          <polyline points="14 2 14 8 20 8"/>
+        </svg>
+        <p>No documents yet</p>
+        <button class="view-all-btn" [routerLink]="'/medical-records/upload'">Upload first document</button>
+      </div>
+    </section>
+
+    <!-- Right Column: Recent Activity -->
+    <div class="right-col">
+      <div class="activity-card">
+        <h2 class="card-title" style="margin-bottom: 16px;">Recent Activity</h2>
+        <div class="activity-list" *ngIf="recentActivities.length > 0">
+          <div class="activity-item" *ngFor="let act of recentActivities">
+            <div class="health-icon-sm" [style.background]="act.iconBg">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" [attr.stroke]="act.iconColor" stroke-width="2">
+                <ng-container [ngSwitch]="act.iconType">
+                  <g *ngSwitchCase="'user_plus'">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+                    <circle cx="9" cy="7" r="4"/>
+                    <line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/>
+                  </g>
+                  <g *ngSwitchCase="'calendar_check'">
+                    <rect x="3" y="4" width="18" height="18" rx="2"/>
+                    <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
+                    <line x1="3" y1="10" x2="21" y2="10"/>
+                    <polyline points="9 16 11 18 15 14"/>
+                  </g>
+                  <g *ngSwitchCase="'upload'">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+                  </g>
+                  <g *ngSwitchCase="'message'">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                  </g>
+                </ng-container>
+              </svg>
+            </div>
+            <div class="activity-body">
+              <p class="activity-title">{{ act.title }}</p>
+              <p class="activity-sub">
+                {{ act.description }}
+                <span class="time-badge">{{ act.timeAgo }}</span>
+              </p>
+            </div>
+          </div>
+        </div>
+        <div class="activity-list" *ngIf="recentActivities.length === 0">
+          <p style="font-size:13px; color:#9aadbe; text-align:center; padding:12px 0">No recent activity</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>

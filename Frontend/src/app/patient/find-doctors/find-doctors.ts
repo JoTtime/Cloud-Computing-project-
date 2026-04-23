@@ -1,365 +1,130 @@
-import { CommonModule } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
-import { Router } from '@angular/router';
+import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { SharedHeader } from '../../features/shared-header/shared-header';
-import { DoctorService, Doctor } from '../../services/doctor';
-import { ConnectionService } from '../../services/connection';
-import { MessageService } from '../../services/message';
-import { AppointmentService, TimeSlot } from '../../services/appointment.service';
+import { Router } from '@angular/router';
 
-interface DoctorDisplay extends Doctor {
-  isConnected: boolean;
-  isPending: boolean;
-  connectionId?: string;
-}
-
-interface CalendarDay {
-  day: number;
-  isCurrentMonth: boolean;
-  isSelected: boolean;
-  disabled: boolean;
+export interface Doctor {
+  id: number;
+  initials: string;
+  name: string;
+  specialty: string;
+  rating: number;
+  patients: number;
+  available: boolean;
+  cardGradient: string;
+  avatarGradient: string;
 }
 
 @Component({
   selector: 'app-find-doctors',
   standalone: true,
-  imports: [CommonModule, FormsModule, SharedHeader],
+  imports: [CommonModule, FormsModule],
   templateUrl: './find-doctors.html',
-  styleUrl: './find-doctors.css',
+  styleUrls: ['./find-doctors.css']
 })
-export class FindDoctors implements OnInit {
+export class FindDoctorsComponent implements OnInit {
+isDoctor: boolean = false;
+  searchQuery = '';
+  selectedSpecialty = 'All';
 
-  
-  userName: string = '';
-  currentUserId: string = '';
-  searchQuery: string = '';
-  selectedSpecialty: string = 'all';
-  
   specialties = [
-    { value: 'all', label: 'All Specialties' },
-    { value: 'cardiology', label: 'Cardiology' },
-    { value: 'general', label: 'General Practice' },
-    { value: 'pediatrics', label: 'Pediatrics' },
-    { value: 'orthopedic', label: 'Orthopedic Surgery' },
-    { value: 'dermatology', label: 'Dermatology' },
-    { value: 'neurology', label: 'Neurology' }
+    'All', 'Cardiology', 'General Practice', 'Pediatrics',
+    'Neurology', 'Dermatology', 'Orthopedics', 'Oncology'
   ];
 
-  allDoctors: DoctorDisplay[] = [];
-  filteredDoctors: DoctorDisplay[] = [];
-  isLoading: boolean = false;
-  
-  // Modal states
-  showMessageModal: boolean = false;
-  showBookingModal: boolean = false;
-  selectedDoctor: DoctorDisplay | null = null;
-  messageText: string = '';
+  allDoctors: Doctor[] = [
+    { 
+      id: 1, initials: 'ER', name: 'Dr. Elena Rivera', 
+      specialty: 'Cardiology', rating: 4.9, patients: 142, available: true, 
+      cardGradient: 'linear-gradient(135deg, #0369a1, #0891b2)',   // 🔵 changed to blue
+      avatarGradient: 'linear-gradient(135deg, #0284c7, #0e7490)' 
+    },
+    { 
+      id: 2, initials: 'AP', name: 'Dr. Aarav Patel', 
+      specialty: 'General Practice', rating: 4.8, patients: 218, available: true, 
+      cardGradient: 'linear-gradient(135deg, #0369a1, #0891b2)',   // 🔵 changed to blue
+      avatarGradient: 'linear-gradient(135deg, #0284c7, #0e7490)' 
+    },
+    { 
+      id: 3, initials: 'CO', name: 'Dr. Chiamaka Okafor', 
+      specialty: 'Pediatrics', rating: 4.95, patients: 176, available: false, 
+      cardGradient: 'linear-gradient(135deg, #f59e0b, #fcd34d)', 
+      avatarGradient: 'linear-gradient(135deg, #d97706, #f59e0b)' 
+    },
+    { 
+      id: 4, initials: 'HB', name: 'Dr. Henrik Berg', 
+      specialty: 'Neurology', rating: 4.7, patients: 98, available: true, 
+      cardGradient: 'linear-gradient(135deg, #a78bfa, #c4b5fd)', 
+      avatarGradient: 'linear-gradient(135deg, #7c3aed, #a78bfa)' 
+    },
+    { 
+      id: 5, initials: 'MT', name: 'Dr. Mei Tanaka', 
+      specialty: 'Dermatology', rating: 4.85, patients: 203, available: true, 
+      cardGradient: 'linear-gradient(135deg, #fb923c, #fca5a5)', 
+      avatarGradient: 'linear-gradient(135deg, #ea580c, #fb923c)' 
+    },
+    { 
+      id: 6, initials: 'SA', name: 'Dr. Samuel Adeyemi', 
+      specialty: 'Orthopedics', rating: 4.6, patients: 134, available: false, 
+      cardGradient: 'linear-gradient(135deg, #2dd4bf, #99f6e4)', 
+      avatarGradient: 'linear-gradient(135deg, #0d9488, #2dd4bf)' 
+    },
+    { 
+      id: 7, initials: 'LK', name: 'Dr. Lena Kovač', 
+      specialty: 'Cardiology', rating: 4.9, patients: 167, available: true, 
+      cardGradient: 'linear-gradient(135deg, #38bdf8, #93c5fd)', 
+      avatarGradient: 'linear-gradient(135deg, #0284c7, #38bdf8)' 
+    },
+    { 
+      id: 8, initials: 'JN', name: 'Dr. James Nguyen', 
+      specialty: 'Oncology', rating: 4.75, patients: 89, available: true, 
+      cardGradient: 'linear-gradient(135deg, #f472b6, #f9a8d4)', 
+      avatarGradient: 'linear-gradient(135deg, #db2777, #f472b6)' 
+    },
+    { 
+      id: 9, initials: 'AM', name: 'Dr. Amara Mensah', 
+      specialty: 'General Practice', rating: 4.8, patients: 251, available: false, 
+      cardGradient: 'linear-gradient(135deg, #86efac, #bbf7d0)', 
+      avatarGradient: 'linear-gradient(135deg, #16a34a, #4ade80)' 
+    },
+  ];
 
-  // Booking form
-  bookingForm = {
-    date: '',
-    startTime: '',
-    endTime: '',
-    type: 'in-person' as 'in-person' | 'video',
-    reason: '',
-    notes: ''
-  };
-  availableSlots: TimeSlot[] = [];
-  loadingSlots: boolean = false;
-  minDate: string = '';
+  filteredDoctors: Doctor[] = [];
 
-  constructor(
-    private router: Router,
-    private DoctorService: DoctorService,
-    private connectionService: ConnectionService,
-    private messageService: MessageService,
-    private appointmentService: AppointmentService
-  ) {
-    // Set minimum date to today
-    const today = new Date();
-    this.minDate = today.toISOString().split('T')[0];
-  }
+  constructor(private router: Router) {}
 
-  ngOnInit(): void {
-    this.loadUserInfo();
-    this.loadDoctors();
-  }
-
-  loadUserInfo(): void {
-    const storedUser = localStorage.getItem('currentUser');
-    if (storedUser) {
-      const user = JSON.parse(storedUser);
-      this.currentUserId = user.userId || user.id || user._id;
-      this.userName = `${user.firstName} ${user.lastName}`;
-      console.log('👤 Patient loaded:', this.userName, 'ID:', this.currentUserId);
+  ngOnInit() {
+    this.filteredDoctors = [...this.allDoctors];
+    const user = localStorage.getItem('currentUser');
+    if (user) {
+      const userData = JSON.parse(user);
+      this.isDoctor = userData.userType === 'doctor';
     }
   }
 
-  loadDoctors(): void {
-    this.isLoading = true;
-    this.DoctorService.getAllDoctors(this.selectedSpecialty, this.searchQuery)
-      .subscribe({
-        next: (response) => {
-          if (response.success && response.doctors) {
-            console.log('✅ Doctors loaded:', response.doctors.length);
-            this.allDoctors = response.doctors.map(doc => ({
-              ...doc,
-              isConnected: false,
-              isPending: false,
-              connectionId: undefined
-            }));
-            
-            this.checkConnectionStatuses();
-          }
-          this.isLoading = false;
-        },
-        error: (error) => {
-          console.error('❌ Error loading doctors:', error);
-          this.isLoading = false;
-          alert('Failed to load doctors. Please try again.');
-        }
-      });
-  }
-
-  checkConnectionStatuses(): void {
-    console.log('🔍 Checking connection statuses...');
-    
-    this.connectionService.getPatientConnections().subscribe({
-      next: (response) => {
-        if (response.success && response.connections) {
-          console.log('✅ Patient connections:', response.connections.length);
-          
-          const connectionMap = new Map();
-          response.connections.forEach(conn => {
-            const doctorId = (conn.doctor as any)._id || (conn.doctor as any).userId;
-            connectionMap.set(doctorId, {
-              isConnected: conn.status === 'accepted',
-              isPending: conn.status === 'pending',
-              connectionId: conn._id
-            });
-          });
-
-          this.allDoctors = this.allDoctors.map(doctor => {
-            const connInfo = connectionMap.get(doctor._id);
-            return {
-              ...doctor,
-              isConnected: connInfo?.isConnected || false,
-              isPending: connInfo?.isPending || false,
-              connectionId: connInfo?.connectionId
-            };
-          });
-
-          this.filterDoctors();
-        }
-      },
-      error: (error) => {
-        console.error('❌ Error checking connections:', error);
-        this.filterDoctors();
-      }
+  filterDoctors() {
+    const q = this.searchQuery.toLowerCase().trim();
+    this.filteredDoctors = this.allDoctors.filter(d => {
+      const matchSearch = !q || d.name.toLowerCase().includes(q) || d.specialty.toLowerCase().includes(q);
+      const matchSpec   = this.selectedSpecialty === 'All' || d.specialty === this.selectedSpecialty;
+      return matchSearch && matchSpec;
     });
   }
 
-  onSearch(): void {
-    console.log('🔎 Searching with query:', this.searchQuery);
-    this.loadDoctors();
+  selectSpecialty(spec: string) {
+    this.selectedSpecialty = spec;
+    this.filterDoctors();
   }
 
-  onSpecialtyChange(): void {
-    console.log('🥼 Specialty changed to:', this.selectedSpecialty);
-    this.loadDoctors();
+  bookConsultation(doctor: Doctor) {
+    this.router.navigate(['/appointment'], { queryParams: { doctorId: doctor.id } });
   }
 
- filterDoctors(): void {
-  // Show all doctors
-  this.filteredDoctors = [...this.allDoctors];
-  console.log('📋 Filtered doctors:', this.filteredDoctors.length);
-}
-
-  connectWithDoctor(doctor: DoctorDisplay): void {
-    if (doctor.isPending) {
-      alert('Connection request already sent and pending approval.');
-      return;
-    }
-
-    if (doctor.isConnected) {
-      alert('You are already connected with this doctor.');
-      return;
-    }
-
-    console.log('🔗 Requesting connection to doctor:', doctor._id);
-
-    this.connectionService.requestConnection(doctor._id).subscribe({
-      next: (response) => {
-        if (response.success) {
-          console.log('✅ Connection request sent');
-          alert(`Connection request sent to Dr. ${doctor.firstName} ${doctor.lastName}!`);
-          doctor.isPending = true;
-        }
-      },
-      error: (error) => {
-        console.error('❌ Error requesting connection:', error);
-        alert('Failed to send connection request. Please try again.');
-      }
-    });
+  addDoctor() {
+    this.router.navigate(['/doctor-onboarding']);
   }
 
-  getFullDoctorName(doctor: DoctorDisplay): string {
-    return `Dr. ${doctor.firstName} ${doctor.lastName}`;
-  }
-
-  openMessageModal(doctor: DoctorDisplay): void {
-    if (!doctor.isConnected) {
-      alert('You must be connected to message this doctor.');
-      return;
-    }
-
-    if (!doctor.connectionId) {
-      alert('Connection ID not found. Please refresh the page.');
-      return;
-    }
-
-    this.selectedDoctor = doctor;
-    this.messageText = '';
-    this.showMessageModal = true;
-  }
-
-  closeMessageModal(): void {
-    this.showMessageModal = false;
-    this.selectedDoctor = null;
-    this.messageText = '';
-  }
-
-  sendMessage(): void {
-    if (!this.messageText.trim() || !this.selectedDoctor || !this.selectedDoctor.connectionId) {
-      return;
-    }
-
-    this.messageService.sendMessage(
-      this.selectedDoctor.connectionId,
-      this.messageText.trim()
-    ).subscribe({
-      next: (response) => {
-        if (response.success) {
-          alert('Message sent successfully!');
-          this.closeMessageModal();
-        }
-      },
-      error: (error) => {
-        console.error('❌ Error sending message:', error);
-        alert('Failed to send message. Please try again.');
-      }
-    });
-  }
-
-  openBookingModal(doctor: DoctorDisplay): void {
-    if (!doctor.isConnected) {
-      alert('You must be connected to book an appointment with this doctor.');
-      return;
-    }
-
-    console.log('📅 Opening booking modal for:', doctor.firstName, doctor.lastName);
-    this.selectedDoctor = doctor;
-    this.resetBookingForm();
-    this.showBookingModal = true;
-  }
-
-  closeBookingModal(): void {
-    this.showBookingModal = false;
-    this.selectedDoctor = null;
-    this.resetBookingForm();
-  }
-
-  resetBookingForm(): void {
-    this.bookingForm = {
-      date: '',
-      startTime: '',
-      endTime: '',
-      type: 'in-person',
-      reason: '',
-      notes: ''
-    };
-    this.availableSlots = [];
-  }
-
-  onDateChange(): void {
-    if (!this.bookingForm.date || !this.selectedDoctor) {
-      return;
-    }
-
-    console.log('📅 Date changed to:', this.bookingForm.date);
-    this.bookingForm.startTime = '';
-    this.bookingForm.endTime = '';
-    this.loadAvailableSlots();
-  }
-
-  loadAvailableSlots(): void {
-    if (!this.selectedDoctor || !this.bookingForm.date) {
-      return;
-    }
-
-    this.loadingSlots = true;
-    this.appointmentService.getDoctorAvailability(
-      this.selectedDoctor._id,
-      this.bookingForm.date
-    ).subscribe({
-      next: (response) => {
-        if (response.success && response.availability) {
-          this.availableSlots = response.availability.slots;
-          console.log('✅ Available slots loaded:', this.availableSlots.length);
-        }
-        this.loadingSlots = false;
-      },
-      error: (error) => {
-        console.error('❌ Error loading slots:', error);
-        alert('Failed to load available time slots.');
-        this.loadingSlots = false;
-      }
-    });
-  }
-
-  selectTimeSlot(slot: TimeSlot): void {
-    this.bookingForm.startTime = slot.start;
-    this.bookingForm.endTime = slot.end;
-    console.log('🕐 Time slot selected:', slot);
-  }
-
-  isBookingFormValid(): boolean {
-    return !!(
-      this.bookingForm.date &&
-      this.bookingForm.startTime &&
-      this.bookingForm.type &&
-      this.bookingForm.reason.trim()
-    );
-  }
-
-  confirmBooking(): void {
-    if (!this.isBookingFormValid() || !this.selectedDoctor) {
-      return;
-    }
-
-    console.log('📝 Confirming booking:', this.bookingForm);
-
-    this.appointmentService.bookAppointment({
-      doctorId: this.selectedDoctor._id,
-      date: this.bookingForm.date,
-      startTime: this.bookingForm.startTime,
-      endTime: this.bookingForm.endTime,
-      type: this.bookingForm.type,
-      reason: this.bookingForm.reason,
-      notes: this.bookingForm.notes
-    }).subscribe({
-      next: (response) => {
-        if (response.success) {
-          alert('Appointment request sent successfully! The doctor will review and confirm.');
-          this.closeBookingModal();
-        }
-      },
-      error: (error) => {
-        console.error('❌ Error booking appointment:', error);
-        const errorMsg = error.error?.message || 'Failed to book appointment. Please try again.';
-        alert(errorMsg);
-      }
-    });
+  get availableCount() {
+    return this.filteredDoctors.filter(d => d.available).length;
   }
 }

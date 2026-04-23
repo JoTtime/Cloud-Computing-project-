@@ -61,10 +61,10 @@ signinForm: FormGroup;
             // FIXED: Always go to dashboard, modal will show automatically for unverified doctors
             if (user.userType === 'doctor') {
               console.log('🔑 Redirecting to doctor dashboard...');
-              this.router.navigate(['/doctor-dashboard']);
+              this.router.navigate(['/doctor/dashboard']);
             } else if (user.userType === 'patient') {
               console.log('🔑 Redirecting to patient dashboard...');
-              this.router.navigate(['/patient-dashboard']);
+              this.router.navigate(['/patient/dashboard']);
             } else {
               this.router.navigate(['/login']);
             }
