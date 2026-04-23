@@ -894,6 +894,15 @@ html, body {
     flex: 1;
   }
 }
+/* Reduce size of buttons in the hero right column */
+.hero-right .hero-btn {
+  width: auto;
+  align-self: flex-start;
+}
+.hero-right .hero-btn svg {
+  width: 14px;
+  height: 14px;
+}
 
 @media (max-width: 768px) {
   .sidebar {

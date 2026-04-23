@@ -1,6 +1,6 @@
-// dashboard-home.component.ts
+// dashboard-home.component.ts – Fully dynamic, no mock data
 import { CommonModule, DatePipe, UpperCasePipe } from '@angular/common';
-import { Component, OnDestroy, OnInit,ViewChild, ElementRef  } from '@angular/core';
+import { Component, OnDestroy, OnInit, ViewChild, ElementRef } from '@angular/core';
 import { Router, RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { forkJoin, Subscription } from 'rxjs';
@@ -9,6 +9,8 @@ import { ConnectionService } from '../../services/connection';
 import { AppointmentService, Appointment as AppointmentModel } from '../../services/appointment.service';
 import { PatientProfileService } from '../../services/patient-profile';
 import { NotificationService } from '../../services/notification';
+// Import billing service if available – optional; if not, we skip revenue
+// import { BillingService } from '../../services/billing';
 
 interface AdminStatCard {
   title: string;
@@ -41,22 +43,24 @@ interface ActivityItem {
   selector: 'app-dashboard-home',
   standalone: true,
   imports: [CommonModule, RouterModule, FormsModule, DatePipe, UpperCasePipe],
-  templateUrl: './dashboard-home.html',  // your dashboard content HTML
-  styleUrls: ['./dashboard-home.css']   // same CSS as before
+  templateUrl: './dashboard-home.html',
+  styleUrls: ['./dashboard-home.css']
 })
 export class DashboardHomeComponent implements OnInit, OnDestroy {
-  @ViewChild('fileUpload') fileUpload!: ElementRef<HTMLInputElement>; 
+  @ViewChild('fileUpload') fileUpload!: ElementRef<HTMLInputElement>;
+
   userName: string = '';
   loading: boolean = true;
   today: Date = new Date();
   totalDocumentsCount: number = 0;
   upcomingAppointmentsCount: number = 0;
 
+  // Stats – will be populated from real data
   adminStats: AdminStatCard[] = [
-    { title: 'PATIENTS', value: '2,481', trend: '+12.4% vs last week', trendUp: true, iconType: 'users', iconColor: '#0369a1', bgColor: 'rgba(3,105,161,0.08)' },
-    { title: 'APPOINTMENTS', value: '184', trend: '+5.2% vs last week', trendUp: true, iconType: 'calendar', iconColor: '#0891b2', bgColor: 'rgba(8,145,178,0.08)' },
-    { title: 'ACTIVE DOCTORS', value: '32', trend: '+2 vs last week', trendUp: true, iconType: 'doctors', iconColor: '#7c3aed', bgColor: 'rgba(124,58,237,0.08)' },
-    { title: 'REVENUE', value: '$48.2k', trend: '-1.8% vs last week', trendUp: false, iconType: 'revenue', iconColor: '#16a34a', bgColor: 'rgba(22,163,74,0.08)' }
+    { title: 'PATIENTS', value: 0, trend: 'Loading...', trendUp: true, iconType: 'users', iconColor: '#0369a1', bgColor: 'rgba(3,105,161,0.08)' },
+    { title: 'APPOINTMENTS', value: 0, trend: 'Loading...', trendUp: true, iconType: 'calendar', iconColor: '#0891b2', bgColor: 'rgba(8,145,178,0.08)' },
+    { title: 'ACTIVE DOCTORS', value: 0, trend: 'Loading...', trendUp: true, iconType: 'doctors', iconColor: '#7c3aed', bgColor: 'rgba(124,58,237,0.08)' },
+    { title: 'REVENUE', value: '$--', trend: 'Loading...', trendUp: false, iconType: 'revenue', iconColor: '#16a34a', bgColor: 'rgba(22,163,74,0.08)' }
   ];
 
   recentDocuments: DocumentItem[] = [];
@@ -88,6 +92,7 @@ export class DashboardHomeComponent implements OnInit, OnDestroy {
     private appointmentService: AppointmentService,
     private patientProfileService: PatientProfileService,
     private notificationService: NotificationService
+    // private billingService?: BillingService // optional
   ) {}
 
   get greeting(): string {
@@ -105,9 +110,7 @@ export class DashboardHomeComponent implements OnInit, OnDestroy {
     const input = event.target as HTMLInputElement;
     if (input.files && input.files.length > 0) {
       const file = input.files[0];
-      // Navigate to the upload page, passing the file via state (optional)
       this.router.navigate(['/patient/medical-records/upload'], { state: { file } });
-      // Reset the input so the same file can be selected again later
       input.value = '';
     }
   }
@@ -144,18 +147,62 @@ export class DashboardHomeComponent implements OnInit, OnDestroy {
       connections: this.connectionService.getPatientConnections(),
       appointments: this.appointmentService.getPatientAppointments(),
       profile: this.patientProfileService.getMyProfile()
+      // revenue: this.billingService?.getTotalRevenue() // optional
     }).subscribe({
       next: (results) => {
-        if (results.documents) this.processDocuments(results.documents);
-        if (results.appointments.success) this.processAppointments(results.appointments.appointments || []);
-        if (results.connections.success) this.updateDoctorCount(results.connections.connections || []);
-        this.buildRecentActivity(results.documents, results.appointments.appointments || []);
+        // Process documents
+        if (results.documents) {
+          this.processDocuments(results.documents);
+        } else {
+          this.totalDocumentsCount = 0;
+          this.recentDocuments = [];
+        }
+
+        // Process appointments
+        let appointmentsList: AppointmentModel[] = [];
+        if (results.appointments.success) {
+          appointmentsList = results.appointments.appointments || [];
+          this.processAppointments(appointmentsList);
+        } else {
+          this.upcomingAppointmentsCount = 0;
+          this.adminStats[1].value = 0;
+          this.adminStats[1].trend = 'No appointments';
+        }
+
+        // Process connections (update patients & active doctors counts)
+        let totalConnections = 0;
+        let acceptedDoctors = 0;
+        if (results.connections.success && results.connections.connections) {
+          const connections = results.connections.connections;
+          totalConnections = connections.length;
+          acceptedDoctors = connections.filter((c: any) => c.status === 'accepted').length;
+          this.updateConnectionStats(totalConnections, acceptedDoctors);
+        } else {
+          this.updateConnectionStats(0, 0);
+        }
+
+        // Build recent activities from real documents and appointments (no mock)
+        this.buildRecentActivity(results.documents || [], appointmentsList);
+
+        // Optionally update revenue if billing service is available
+        // if (results.revenue) { this.updateRevenueStat(results.revenue); }
+
         this.loading = false;
       },
-      error: () => {
+      error: (err) => {
+        console.error('Error loading dashboard data', err);
+        // Set error states instead of mock data
         this.loading = false;
-        this.adminStats = [...this.adminStats];
-        this.recentActivities = this.getDemoActivities();
+        this.adminStats[0].value = 'Error';
+        this.adminStats[0].trend = 'Unable to load';
+        this.adminStats[1].value = 'Error';
+        this.adminStats[1].trend = 'Unable to load';
+        this.adminStats[2].value = 'Error';
+        this.adminStats[2].trend = 'Unable to load';
+        this.adminStats[3].value = '$--';
+        this.adminStats[3].trend = 'Unable to load';
+        this.recentDocuments = [];
+        this.recentActivities = [];
       }
     });
   }
@@ -181,17 +228,38 @@ export class DashboardHomeComponent implements OnInit, OnDestroy {
       return d >= now && !['cancelled','completed','rejected'].includes(a.status);
     });
     this.upcomingAppointmentsCount = upcoming.length;
-    this.adminStats[1].value = appointments.length.toString();
+    // Update stat card
+    this.adminStats[1].value = appointments.length;
+    this.adminStats[1].trend = this.upcomingAppointmentsCount > 0 
+      ? `${this.upcomingAppointmentsCount} upcoming` 
+      : 'No upcoming';
   }
 
-  updateDoctorCount(connections: any[]): void {
-    const acceptedDoctors = connections.filter(c => c.status === 'accepted').length;
-    this.adminStats[2].value = acceptedDoctors.toString();
+  updateConnectionStats(total: number, accepted: number): void {
+    this.adminStats[0].value = total;
+    this.adminStats[0].trend = accepted > 0 ? `${accepted} active` : 'No connections';
+
+    this.adminStats[2].value = accepted;
+    this.adminStats[2].trend = accepted > 0 ? `${accepted} connected` : 'No doctors';
+  }
+
+  updateRevenueStat(revenue: any): void {
+    // Example: revenue = { total: 48290, change: '+8.4%' }
+    this.adminStats[3].value = `$${revenue.total?.toLocaleString() || '0'}`;
+    this.adminStats[3].trend = revenue.change || 'No data';
+    this.adminStats[3].trendUp = revenue.change?.startsWith('+') ?? false;
   }
 
   refreshConnectionStats(): void {
     this.connectionService.getPatientConnections().subscribe({
-      next: (r) => { if (r.success) this.updateDoctorCount(r.connections || []); },
+      next: (r) => {
+        if (r.success && r.connections) {
+          const connections = r.connections;
+          const total = connections.length;
+          const accepted = connections.filter((c: any) => c.status === 'accepted').length;
+          this.updateConnectionStats(total, accepted);
+        }
+      },
       error: () => {}
     });
   }
@@ -203,7 +271,8 @@ export class DashboardHomeComponent implements OnInit, OnDestroy {
   buildRecentActivity(documents: DocumentResponse[], appointments: AppointmentModel[]): void {
     const activities: ActivityItem[] = [];
 
-    documents.slice(0, 2).forEach(doc => {
+    // Add document upload activities (up to 3)
+    documents.slice(0, 3).forEach(doc => {
       activities.push({
         iconType: 'upload',
         iconBg: '#fff0e6',
@@ -214,8 +283,9 @@ export class DashboardHomeComponent implements OnInit, OnDestroy {
       });
     });
 
-    appointments.slice(0, 2).forEach((app: any) => {
-      const doctorDisplay = app.doctorName || app.doctor?.name || `Doctor ${app.doctorId || 'ID:' + app._id}` || 'a physician';
+    // Add appointment activities (up to 3)
+    appointments.slice(0, 3).forEach((app: any) => {
+      const doctorDisplay = app.doctorName || app.doctor?.name || `Doctor ${app.doctorId || 'ID:' + app._id}`;
       const appDate = new Date(app.date);
       activities.push({
         iconType: 'calendar_check',
@@ -227,10 +297,7 @@ export class DashboardHomeComponent implements OnInit, OnDestroy {
       });
     });
 
-    if (activities.length < 3) {
-      activities.push(...this.getDemoActivities());
-    }
-
+    // Sort by most recent (timeAgo numeric value)
     this.recentActivities = activities.sort((a, b) => {
       const getRank = (t: string) => {
         if (t.includes('minute')) return 0;
@@ -239,25 +306,17 @@ export class DashboardHomeComponent implements OnInit, OnDestroy {
         return 3;
       };
       return getRank(a.timeAgo) - getRank(b.timeAgo);
-    }).slice(0, 4);
-  }
-
-  getDemoActivities(): ActivityItem[] {
-    return [
-      { iconType: 'user_plus', iconBg: '#e0f2fe', iconColor: '#0369a1', title: 'New patient registered', description: 'Amelia Chen joined the clinic', timeAgo: '2 hours ago' },
-      { iconType: 'calendar_check', iconBg: '#e6f7ec', iconColor: '#16a34a', title: 'Appointment scheduled', description: 'You booked with Dr. Rivera on May 12', timeAgo: 'Yesterday' },
-      { iconType: 'message', iconBg: '#ede9fe', iconColor: '#7c3aed', title: 'Message from Dr. Patel', description: 'Prescription renewal ready', timeAgo: '3 days ago' }
-    ];
+    }).slice(0, 5); // show up to 5 activities
   }
 
   getTimeAgo(date: Date): string {
     const diffMs = Date.now() - date.getTime();
     const diffMins = Math.floor(diffMs / 60000);
-    if (diffMins < 60) return `${diffMins} minutes ago`;
+    if (diffMins < 60) return `${diffMins} minute${diffMins !== 1 ? 's' : ''} ago`;
     const diffHours = Math.floor(diffMins / 60);
-    if (diffHours < 24) return `${diffHours} hours ago`;
+    if (diffHours < 24) return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
     const diffDays = Math.floor(diffHours / 24);
-    return `${diffDays} days ago`;
+    return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
   }
 
   formatDate(dateString: string): string {
@@ -265,10 +324,10 @@ export class DashboardHomeComponent implements OnInit, OnDestroy {
   }
 
   viewAllDocuments(): void {
-    this.router.navigate(['/medical-records']);
+    this.router.navigate(['/patient/medical-records']);
   }
 
   viewDocument(id: string): void {
-    this.router.navigate(['/medical-records', id]);
+    this.router.navigate(['/patient/medical-records', id]);
   }
 }

@@ -54,4 +54,7 @@ export class DoctorProfile {
     );
   }
 
+  getProfile(): Observable<ProfileResponse> {
+  return this.http.get<ProfileResponse>(`${this.apiUrl}/profile`, { headers: this.getHeaders() });
+}
 }

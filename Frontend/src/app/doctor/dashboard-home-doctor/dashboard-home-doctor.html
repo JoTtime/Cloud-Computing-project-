@@ -6,21 +6,26 @@
 
   <!-- HERO BANNER -->
   <section class="hero-banner">
-    <div class="hero-banner__bg">
-      <div class="hero-circle hero-circle--1"></div>
-      <div class="hero-circle hero-circle--2"></div>
-    </div>
     <div class="hero-banner__content">
-      <div class="hero-status-pill">
-        <span class="status-pulse"></span>
-        {{ today | date:'EEEE, MMMM d' }} &middot; All systems healthy
+      <!-- Column 1: pill + greeting -->
+      <div class="hero-left">
+        <div class="hero-status-pill">
+          <span class="status-pulse"></span>
+          {{ today | date:'EEEE, MMMM d' }} &middot; All systems healthy
+        </div>
+        <h1 class="hero-greeting">{{ greeting }}, {{ doctorName }}.</h1>
       </div>
-      <h1 class="hero-greeting">{{ greeting }}, {{ doctorName }}.</h1>
-      <p class="hero-sub">
-        You have <strong>{{ todayAppointments.length }} appointments</strong> today
-        and <strong>{{ pendingLabReviews }} pending lab reviews</strong>. Let's make it a great day.
-      </p>
-      <div class="hero-actions">
+
+      <!-- Column 2: description -->
+      <div class="hero-mid">
+        <p class="hero-sub">
+          You have <strong>{{ todayAppointments.length }} appointments</strong> today
+          and <strong>{{ pendingLabReviews }}</strong> pending lab reviews. Let's make it a great day.
+        </p>
+      </div>
+
+      <!-- Column 3: buttons stacked (correct container) -->
+      <div class="hero-right">
         <button class="hero-btn hero-btn--primary" (click)="viewTodaySchedule()">
           View today's schedule →
         </button>

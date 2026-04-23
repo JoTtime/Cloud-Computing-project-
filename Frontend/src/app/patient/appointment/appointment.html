@@ -84,12 +84,11 @@
         <input type="text" [(ngModel)]="newAppointment.patientName" placeholder="Full name" />
 
         <label>Doctor</label>
-        <select [(ngModel)]="newAppointment.doctor">
-          <option value="Dr. Elena Rivera">Dr. Elena Rivera (Cardiology)</option>
-          <option value="Dr. Aarav Patel">Dr. Aarav Patel (General)</option>
-          <option value="Dr. Chiamaka Okafor">Dr. Chiamaka Okafor (Pediatrics)</option>
-          <option value="Dr. Henrik Berg">Dr. Henrik Berg (Neurology)</option>
-        </select>
+         <select [(ngModel)]="newAppointment.doctorId">
+           <option *ngFor="let doc of doctorsList" [value]="doc.id">
+            {{ doc.name }} ({{ doc.specialty }})
+           </option>
+          </select>
 
         <label>Date</label>
         <input type="date" [(ngModel)]="newAppointment.date" />

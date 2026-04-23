@@ -6,7 +6,7 @@
       <h1 class="fd-title">Medical team</h1>
       <p class="fd-subtitle">Our specialists and their availability across the clinic.</p>
     </div>
-    <button class="fd-add-btn" (click)="addDoctor()"  *ngIf="isDoctor">
+    <button class="fd-add-btn" (click)="addDoctor()" *ngIf="isDoctor">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
         <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
       </svg>
@@ -24,15 +24,14 @@
         type="text"
         placeholder="Search by name or specialty…"
         [(ngModel)]="searchQuery"
-        (ngModelChange)="filterDoctors()"
+        (ngModelChange)="onSearch()"
       />
-      <button class="fd-search__clear" *ngIf="searchQuery" (click)="searchQuery=''; filterDoctors()">
+      <button class="fd-search__clear" *ngIf="searchQuery" (click)="searchQuery=''; onSearch()">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
           <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
         </svg>
       </button>
     </div>
-
     <div class="fd-filters">
       <button
         class="fd-filter-pill"
@@ -43,11 +42,22 @@
     </div>
   </div>
 
-  <!-- Results count -->
-  <p class="fd-results-info" *ngIf="searchQuery || selectedSpecialty !== 'All'">
-    {{ filteredDoctors.length }} doctor{{ filteredDoctors.length !== 1 ? 's' : '' }} found
-    <span *ngIf="availableCount > 0"> · {{ availableCount }} available</span>
-  </p>
+  <!-- Table toolbar -->
+  <div class="fd-toolbar" *ngIf="filteredDoctors.length > 0 || searchQuery || selectedSpecialty !== 'All'">
+    <p class="fd-results-info">
+      {{ filteredDoctors.length }} doctor{{ filteredDoctors.length !== 1 ? 's' : '' }}
+      <span *ngIf="availableCount > 0"> · {{ availableCount }} available</span>
+    </p>
+    <div class="fd-per-page">
+      <label>Show</label>
+      <select [(ngModel)]="pageSize" (ngModelChange)="onPageSizeChange()">
+        <option [value]="5">5</option>
+        <option [value]="10">10</option>
+        <option [value]="20">20</option>
+      </select>
+      <label>per page</label>
+    </div>
+  </div>
 
   <!-- Empty state -->
   <div class="fd-empty" *ngIf="filteredDoctors.length === 0">
@@ -61,60 +71,71 @@
     <button class="fd-filter-pill fd-filter-pill--active" (click)="searchQuery=''; selectSpecialty('All')">Clear filters</button>
   </div>
 
-  <!-- Doctor Cards Grid -->
-  <div class="fd-grid" *ngIf="filteredDoctors.length > 0">
-    <div class="fd-card" *ngFor="let doc of filteredDoctors">
+  <!-- Doctors Table -->
+  <div class="fd-table-wrap" *ngIf="filteredDoctors.length > 0">
+    <table class="fd-table">
+      <thead>
+        <tr>
+          <th>Doctor</th>
+          <th>Specialty</th>
+          <th>Rating</th>
+          <th>Patients</th>
+          <th>Status</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let doc of pagedDoctors">
+          <td>
+            <div class="fd-name-cell">
+              <div class="fd-avatar" [style.background]="doc.avatarGradient">{{ doc.initials }}</div>
+              <span class="fd-doc-name">{{ doc.name }}</span>
+            </div>
+          </td>
+          <td class="fd-td-muted">{{ doc.specialty }}</td>
+          <td>
+            <span class="fd-rating">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="#f59e0b" stroke="none">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+              </svg>
+              {{ doc.rating }}
+            </span>
+          </td>
+          <td>{{ doc.patients }}</td>
+          <td>
+            <span class="fd-badge" [class.fd-badge--off]="!doc.available">
+              <span class="fd-badge__dot"></span>
+              {{ doc.available ? 'Available' : 'Off' }}
+            </span>
+          </td>
+          <td>
+            <button class="fd-book-btn" (click)="bookConsultation(doc)">Book</button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
 
-      <!-- Coloured top section -->
-      <div class="fd-card__top" [style.background]="doc.cardGradient">
-        <div class="fd-card__avatar" [style.background]="doc.avatarGradient">
-          {{ doc.initials }}
-        </div>
-        <div class="fd-card__identity">
-          <h3 class="fd-card__name">{{ doc.name }}</h3>
-          <span class="fd-card__status" [class.fd-card__status--off]="!doc.available">
-            <span class="fd-card__status-dot"></span>
-            {{ doc.available ? 'Available' : 'Off' }}
-          </span>
-          <p class="fd-card__specialty">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" opacity="0.7">
-              <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
-            </svg>
-            {{ doc.specialty }}
-          </p>
-        </div>
+    <!-- Pagination -->
+    <div class="fd-pagination">
+      <span class="fd-pag-info">Page {{ currentPage }} of {{ totalPages }}</span>
+      <div class="fd-pag-controls">
+        <button class="fd-pag-btn" (click)="goToPage(currentPage - 1)" [disabled]="currentPage === 1">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polyline points="15 18 9 12 15 6"/>
+          </svg>
+        </button>
+        <button
+          class="fd-pag-btn"
+          *ngFor="let p of pageNumbers"
+          [class.fd-pag-btn--active]="p === currentPage"
+          (click)="goToPage(p)"
+        >{{ p }}</button>
+        <button class="fd-pag-btn" (click)="goToPage(currentPage + 1)" [disabled]="currentPage === totalPages">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polyline points="9 18 15 12 9 6"/>
+          </svg>
+        </button>
       </div>
-
-      <!-- Stats row -->
-      <div class="fd-card__stats">
-        <div class="fd-stat">
-          <span class="fd-stat__label">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="#f59e0b" stroke="none">
-              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-            </svg>
-            Rating
-          </span>
-          <span class="fd-stat__value">{{ doc.rating }}</span>
-        </div>
-        <div class="fd-stat">
-          <span class="fd-stat__label">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6b8090" stroke-width="2">
-              <rect x="3" y="4" width="18" height="18" rx="2"/>
-              <line x1="16" y1="2" x2="16" y2="6"/>
-              <line x1="8" y1="2" x2="8" y2="6"/>
-              <line x1="3" y1="10" x2="21" y2="10"/>
-            </svg>
-            Patients
-          </span>
-          <span class="fd-stat__value">{{ doc.patients }}</span>
-        </div>
-      </div>
-
-      <!-- Book button -->
-      <button class="fd-card__book" (click)="bookConsultation(doc)">
-        Book consultation
-      </button>
-
     </div>
   </div>
 

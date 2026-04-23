@@ -26,13 +26,6 @@ interface ScheduleItem {
   appointmentData?: Appointment;
 }
 
-interface ActivityItem {
-  title: string;
-  sub: string;
-  time: string;
-  color: string;
-}
-
 const SPECIALTY_COLORS: Record<string, { bg: string; color: string }> = {
   'Cardiology':   { bg: 'rgba(3,105,161,0.10)',  color: '#0369a1' },
   'General':      { bg: 'rgba(8,145,178,0.10)',   color: '#0891b2' },
@@ -48,25 +41,25 @@ const SPECIALTY_COLORS: Record<string, { bg: string; color: string }> = {
   standalone: true,
   imports: [CommonModule, RouterModule, DatePipe],
   templateUrl: './dashboard-home-doctor.html',
-  styleUrls: ['./dashboard-home-doctor.css']  
+  styleUrls: ['./dashboard-home-doctor.css']
 })
 export class DashboardHomeDoctor implements OnInit {
   loading = true;
   today = new Date();
   doctorName = '';
-  pendingLabReviews = 2;
-  clinicScore = 86;
+  pendingLabReviews = 0;
+  clinicScore = 86;   // could be fetched from a service
   totalTodaySlots = 0;
   todayAppointments: ScheduleItem[] = [];
 
   statCards: StatCard[] = [
-    { label: 'PATIENTS',       value: '—', trend: '—', trendUp: true,  icon: 'patients',  iconColor: '#0369a1', iconBg: 'rgba(3,105,161,0.08)' },
-    { label: 'APPOINTMENTS',   value: '—', trend: '—', trendUp: true,  icon: 'calendar',  iconColor: '#0891b2', iconBg: 'rgba(8,145,178,0.08)' },
-    { label: 'ACTIVE DOCTORS', value: '—', trend: '—', trendUp: true,  icon: 'doctors',   iconColor: '#7c3aed', iconBg: 'rgba(124,58,237,0.08)' },
-    { label: 'REVENUE',        value: '—', trend: '—', trendUp: false, icon: 'revenue',   iconColor: '#dc2626', iconBg: 'rgba(220,38,38,0.08)' },
+    { label: 'PATIENTS',       value: 0, trend: 'Loading...', trendUp: true,  icon: 'patients',  iconColor: '#0369a1', iconBg: 'rgba(3,105,161,0.08)' },
+    { label: 'APPOINTMENTS',   value: 0, trend: 'Loading...', trendUp: true,  icon: 'calendar',  iconColor: '#0891b2', iconBg: 'rgba(8,145,178,0.08)' },
+    { label: 'ACTIVE DOCTORS', value: 0, trend: 'Loading...', trendUp: true,  icon: 'doctors',   iconColor: '#7c3aed', iconBg: 'rgba(124,58,237,0.08)' },
+    { label: 'REVENUE',        value: 0, trend: 'Loading...', trendUp: false, icon: 'revenue',   iconColor: '#dc2626', iconBg: 'rgba(220,38,38,0.08)' },
   ];
 
-  recentActivity: ActivityItem[] = [];
+  recentActivity: { title: string; sub: string; time: string; color: string }[] = [];
 
   get greeting(): string {
     const h = new Date().getHours();
@@ -99,7 +92,7 @@ export class DashboardHomeDoctor implements OnInit {
         const u = JSON.parse(raw);
         const first = u.firstName || '';
         const last = u.lastName || '';
-        this.doctorName = `Dr. ${last || first}`;
+        this.doctorName = `Dr. ${first} ${last}`.trim();
       } catch (e) {}
     }
   }
@@ -112,13 +105,17 @@ export class DashboardHomeDoctor implements OnInit {
     }).subscribe({
       next: (res) => {
         this.processAppointments(res.appointments?.appointments || []);
-        this.processDoctorConnections(res.connections?.connections || []);
-        this.buildStatCards(res);
+        this.processConnections(res.connections?.connections || []);
+        this.updateStatCards();
         this.buildRecentActivity();
         this.loading = false;
       },
-      error: () => {
-        this.useMockData();
+      error: (err) => {
+        console.error('Error loading dashboard data', err);
+        // Set error states (no mock data)
+        this.statCards.forEach(card => { card.value = 'Error'; card.trend = 'Failed to load'; });
+        this.todayAppointments = [];
+        this.recentActivity = [];
         this.loading = false;
       }
     });
@@ -127,22 +124,29 @@ export class DashboardHomeDoctor implements OnInit {
   processAppointments(appointments: Appointment[]): void {
     const todayStr = new Date().toDateString();
     const todayApts = appointments.filter(a => {
-      const d = new Date((a as any).date);
+      const d = new Date(a.date);
       return d.toDateString() === todayStr &&
-             (a as any).status !== 'cancelled' &&
-             (a as any).status !== 'rejected';
-    }).sort((a, b) => ((a as any).time || '').localeCompare((b as any).time || ''));
+             a.status !== 'cancelled' &&
+             a.status !== 'rejected';
+    }).sort((a, b) => a.startTime.localeCompare(b.startTime));
 
-    this.totalTodaySlots = todayApts.length;
+    this.totalTodaySlots = appointments.length; // total appointments as "total slots"
     this.todayAppointments = todayApts.slice(0, 5).map(a => {
-      const specialty = (a as any).specialty || (a as any).type || 'Consultation';
+      let patientName = 'Unknown';
+      if (a.patient && typeof a.patient === 'object') {
+        const p = a.patient as any;
+        patientName = `${p.firstName || ''} ${p.lastName || ''}`.trim() || 'Patient';
+      }
+      const specialty = (a.doctor && typeof a.doctor === 'object') 
+        ? (a.doctor as any).specialty || 'Consultation' 
+        : 'Consultation';
       const colors = SPECIALTY_COLORS[specialty] ?? { bg: 'rgba(3,105,161,0.10)', color: '#0369a1' };
       return {
-        id: (a as any).id || (a as any)._id || '',
-        patientName: (a as any).patientName || 'Unknown Patient',
-        doctor: `Dr. ${(a as any).doctorName || this.doctorName}`,
-        time: (a as any).time || '—',
-        specialty,
+        id: a._id,
+        patientName: patientName,
+        doctor: (a.doctor && typeof a.doctor === 'object') ? `Dr. ${(a.doctor as any).firstName}` : 'Doctor',
+        time: a.startTime,
+        specialty: specialty,
         tagBg: colors.bg,
         tagColor: colors.color,
         appointmentData: a,
@@ -150,45 +154,39 @@ export class DashboardHomeDoctor implements OnInit {
     });
   }
 
-  processDoctorConnections(connections: any[]): void {
-    const active = connections.filter(c => c.status === 'accepted').length;
-    this.statCards[0].value = active;
-    this.statCards[0].trend = `+${active} total`;
+  processConnections(connections: any[]): void {
+    const accepted = connections.filter(c => c.status === 'accepted').length;
+    const total = connections.length;
+    this.statCards[0].value = total;
+    this.statCards[0].trend = accepted > 0 ? `${accepted} active` : 'No active';
+    this.statCards[2].value = accepted;
+    this.statCards[2].trend = accepted > 0 ? `${accepted} connected` : 'No doctors';
   }
 
-  buildStatCards(res: any): void {
-    const apts = res.appointments?.appointments || [];
-    this.statCards[1].value = apts.length;
-    this.statCards[1].trend = '+5.2% vs last week';
-    this.statCards[2].value = 32;
-    this.statCards[2].trend = '+2 vs last week';
-    this.statCards[3].value = '$48.2k';
-    this.statCards[3].trend = '-1.8% vs last week';
-    this.statCards[3].trendUp = false;
+  updateStatCards(): void {
+    // Revenue would come from a billing service – for now, keep it simple
+    this.statCards[3].value = '$0';
+    this.statCards[3].trend = 'No data';
   }
 
   buildRecentActivity(): void {
-    this.recentActivity = [
-      { title: 'New patient registered',     sub: 'Amelia Chen joined the clinic',      time: '2m ago',  color: '#0369a1' },
-      { title: 'Invoice #INV-2041 paid',     sub: 'Marcus Hill • $240',                 time: '18m ago', color: '#16a34a' },
-      { title: 'Appointment rescheduled',    sub: 'Sofia Reyes → Apr 24, 11:00',        time: '1h ago',  color: '#d97706' },
-      { title: 'Lab results uploaded',       sub: 'Jonas Müller — Blood panel',         time: '3h ago',  color: '#7c3aed' },
-    ];
-  }
-
-  useMockData(): void {
-    const colors = (s: string) => SPECIALTY_COLORS[s] ?? { bg: 'rgba(3,105,161,0.10)', color: '#0369a1' };
-    this.todayAppointments = [
-      { id:'1', patientName:'Amelia Chen',  doctor:'Dr. Rivera', time:'09:30', specialty:'Cardiology',   ...colors('Cardiology') },
-      { id:'2', patientName:'Marcus Hill',  doctor:'Dr. Patel',  time:'10:15', specialty:'General',      ...colors('General') },
-      { id:'3', patientName:'Sofia Reyes',  doctor:'Dr. Okafor', time:'11:00', specialty:'Pediatrics',   ...colors('Pediatrics') },
-    ].map(i => ({ ...i, tagBg: (i as any).bg, tagColor: (i as any).color }));
-    this.totalTodaySlots = 12;
-    this.statCards[0].value = '2,481'; this.statCards[0].trend = '+12.4% vs last week';
-    this.statCards[1].value = '184';   this.statCards[1].trend = '+5.2% vs last week';
-    this.statCards[2].value = '32';    this.statCards[2].trend = '+2 vs last week';
-    this.statCards[3].value = '$48.2k';this.statCards[3].trend = '-1.8% vs last week'; this.statCards[3].trendUp = false;
-    this.buildRecentActivity();
+    // Build from real appointments (last 4, for example)
+    const activities: { title: string; sub: string; time: string; color: string }[] = [];
+    // Take the most recent appointments (from processAppointments, but we'd need sorted by date)
+    // For simplicity, we'll show a placeholder – you can later fetch a real activity feed
+    if (this.todayAppointments.length > 0) {
+      const apt = this.todayAppointments[0];
+      activities.push({
+        title: 'Upcoming appointment',
+        sub: `${apt.patientName} at ${apt.time}`,
+        time: 'today',
+        color: '#0369a1'
+      });
+    }
+    if (activities.length === 0) {
+      activities.push({ title: 'No recent activity', sub: 'Your schedule is clear', time: '', color: '#6b8090' });
+    }
+    this.recentActivity = activities;
   }
 
   viewTodaySchedule(): void {
