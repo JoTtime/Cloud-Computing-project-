@@ -1,6 +1,7 @@
 package com.medconnect.billingservice.service;
 
 import com.medconnect.billingservice.dto.CreateInvoiceRequest;
+import com.medconnect.billingservice.dto.CampayInitiateRequest;
 import com.medconnect.billingservice.dto.PayInvoiceRequest;
 import com.medconnect.billingservice.entity.Invoice;
 import com.medconnect.billingservice.entity.PricingRule;
@@ -23,13 +24,16 @@ public class BillingService {
     private final InvoiceRepository invoiceRepo;
     private final PricingRuleRepository pricingRepo;
     private final AppointmentClient appointmentClient;
+    private final CampayService campayService;
 
     public BillingService(InvoiceRepository invoiceRepo,
                           PricingRuleRepository pricingRepo,
-                          AppointmentClient appointmentClient) {
+                          AppointmentClient appointmentClient,
+                          CampayService campayService) {
         this.invoiceRepo = invoiceRepo;
         this.pricingRepo = pricingRepo;
         this.appointmentClient = appointmentClient;
+        this.campayService = campayService;
     }
 
     // ── POST /billing — create invoice ───────────────────────────────────────
@@ -130,6 +134,82 @@ public class BillingService {
         inv.setPaymentMethod(Invoice.PaymentMethod.valueOf(req.getPaymentMethod().toLowerCase()));
         inv.setPaidAt(LocalDateTime.now());
         return invoiceRepo.save(inv);
+    }
+
+    @Transactional
+    public Map<String, Object> initiateCampayPayment(AuthenticatedUser patient, String id, CampayInitiateRequest req) {
+        Invoice inv = invoiceRepo.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Invoice not found"));
+
+        if (!inv.getPatientId().equals(patient.getUserId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Not your invoice");
+        }
+        if (inv.getStatus() != Invoice.InvoiceStatus.unpaid) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invoice is already " + inv.getStatus().name());
+        }
+
+        String externalReference = "inv-" + inv.getId() + "-" + System.currentTimeMillis();
+        Map<String, Object> response = campayService.initiatePayment(
+                inv.getTotalAmount(),
+                req.getPhoneNumber(),
+                req.getOperator(),
+                "Payment for invoice " + inv.getId(),
+                externalReference
+        );
+
+        String providerReference = extractReference(response, externalReference);
+        inv.setNotes((inv.getNotes() == null ? "" : inv.getNotes() + " | ") + "campay_ref=" + providerReference);
+        invoiceRepo.save(inv);
+
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("invoiceId", inv.getId());
+        payload.put("reference", providerReference);
+        payload.put("providerResponse", response);
+        payload.put("message", "Campay payment initiated. Approve the mobile money prompt on your phone.");
+        return payload;
+    }
+
+    @Transactional
+    public Map<String, Object> verifyCampayPayment(AuthenticatedUser patient, String id, String reference) {
+        Invoice inv = invoiceRepo.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Invoice not found"));
+
+        if (!inv.getPatientId().equals(patient.getUserId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Not your invoice");
+        }
+        if (inv.getStatus() == Invoice.InvoiceStatus.paid) {
+            return Map.of("paid", true, "invoice", inv, "status", "ALREADY_PAID");
+        }
+
+        Map<String, Object> verification = campayService.verifyTransaction(reference);
+        String status = String.valueOf(verification.getOrDefault("status", "")).toUpperCase();
+        boolean paid = "SUCCESSFUL".equals(status) || "SUCCESS".equals(status) || "COMPLETED".equals(status);
+
+        if (paid) {
+            inv.setStatus(Invoice.InvoiceStatus.paid);
+            inv.setPaymentMethod(Invoice.PaymentMethod.online);
+            inv.setPaidAt(LocalDateTime.now());
+            inv.setNotes((inv.getNotes() == null ? "" : inv.getNotes() + " | ") + "campay_ref=" + reference);
+            invoiceRepo.save(inv);
+        }
+
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("paid", paid);
+        payload.put("status", status);
+        payload.put("invoice", inv);
+        payload.put("providerResponse", verification);
+        return payload;
+    }
+
+    private String extractReference(Map<String, Object> providerResponse, String fallbackReference) {
+        Object[] keys = {"reference", "operator_reference", "external_reference", "transaction_id"};
+        for (Object key : keys) {
+            Object value = providerResponse.get(String.valueOf(key));
+            if (value != null && !String.valueOf(value).isBlank()) {
+                return String.valueOf(value);
+            }
+        }
+        return fallbackReference;
     }
 
     // ── Cancel invoice ────────────────────────────────────────────────────────

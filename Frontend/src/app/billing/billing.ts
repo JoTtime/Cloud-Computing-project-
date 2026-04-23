@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -12,7 +12,7 @@ import { BillingService, Invoice } from '../services/billing.service';
   templateUrl: './billing.html',
   styleUrl: './billing.css',
 })
-export class Billing implements OnInit {
+export class Billing implements OnInit, OnDestroy {
   userName: string = '';
   userType: 'patient' | 'doctor' = 'patient';
   invoices: Invoice[] = [];
@@ -26,6 +26,11 @@ export class Billing implements OnInit {
   selectedInvoice: Invoice | null = null;
   paymentMethod: string = 'card';
   paying = false;
+  phoneNumber = '';
+  operator = '';
+  paymentReference = '';
+  private verifyTimer: ReturnType<typeof setInterval> | null = null;
+  private verifyAttempts = 0;
 
   constructor(private billingService: BillingService) {}
 
@@ -37,6 +42,10 @@ export class Billing implements OnInit {
       this.userType = user.userType;
     }
     this.loadInvoices();
+  }
+
+  ngOnDestroy(): void {
+    this.clearVerifyTimer();
   }
 
   loadInvoices(): void {
@@ -67,16 +76,31 @@ export class Billing implements OnInit {
   openPayModal(inv: Invoice): void {
     this.selectedInvoice = inv;
     this.paymentMethod = 'card';
+    this.phoneNumber = '';
+    this.operator = '';
+    this.paymentReference = '';
+    this.clearVerifyTimer();
     this.showPayModal = true;
   }
 
   closePayModal(): void {
+    this.clearVerifyTimer();
     this.showPayModal = false;
     this.selectedInvoice = null;
   }
 
   confirmPayment(): void {
     if (!this.selectedInvoice) return;
+    const isCampayFlow = this.paymentMethod === 'card' || this.paymentMethod === 'online';
+    if (isCampayFlow) {
+      if (!this.phoneNumber.trim()) {
+        alert('Please enter the mobile money phone number.');
+        return;
+      }
+      this.startCampayPayment();
+      return;
+    }
+
     this.paying = true;
     this.billingService.payInvoice(this.selectedInvoice.id, this.paymentMethod).subscribe({
       next: () => {
@@ -86,6 +110,66 @@ export class Billing implements OnInit {
       },
       error: () => { this.paying = false; }
     });
+  }
+
+  private startCampayPayment(): void {
+    if (!this.selectedInvoice) return;
+    this.paying = true;
+    this.billingService.initiateCampayPayment(this.selectedInvoice.id, {
+      phoneNumber: this.phoneNumber.trim(),
+      operator: this.operator.trim() || undefined
+    }).subscribe({
+      next: (res) => {
+        this.paying = false;
+        this.paymentReference = res.payment?.reference || '';
+        alert(res.payment?.message || 'Payment initiated. Approve the prompt on your phone.');
+        if (!this.paymentReference) {
+          return;
+        }
+        this.startVerificationPolling();
+      },
+      error: (err) => {
+        this.paying = false;
+        alert(err.error?.message || 'Failed to initiate Campay payment.');
+      }
+    });
+  }
+
+  private startVerificationPolling(): void {
+    this.clearVerifyTimer();
+    this.verifyAttempts = 0;
+    this.verifyTimer = setInterval(() => {
+      if (!this.selectedInvoice || !this.paymentReference) {
+        this.clearVerifyTimer();
+        return;
+      }
+      this.verifyAttempts += 1;
+      this.billingService.verifyCampayPayment(this.selectedInvoice.id, this.paymentReference).subscribe({
+        next: (res) => {
+          if (res.payment?.paid) {
+            this.clearVerifyTimer();
+            alert('Payment successful.');
+            this.closePayModal();
+            this.loadInvoices();
+          } else if (this.verifyAttempts >= 12) {
+            this.clearVerifyTimer();
+            alert('Payment is still pending. You can verify again from Billing later.');
+          }
+        },
+        error: () => {
+          if (this.verifyAttempts >= 12) {
+            this.clearVerifyTimer();
+          }
+        }
+      });
+    }, 5000);
+  }
+
+  private clearVerifyTimer(): void {
+    if (this.verifyTimer) {
+      clearInterval(this.verifyTimer);
+      this.verifyTimer = null;
+    }
   }
 
   getStatusClass(status: string): string {

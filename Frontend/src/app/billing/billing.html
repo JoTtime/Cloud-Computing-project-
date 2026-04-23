@@ -114,17 +114,35 @@
     <div class="modal-amount">${{ selectedInvoice?.totalAmount | number:'1.2-2' }}</div>
 
     <label class="modal-label">Payment Method</label>
-    <select class="modal-select" [(ngModel)]="paymentMethod">
+    <select class="modal-select" [(ngModel)]="paymentMethod" title="Payment method">
       <option value="card">Credit / Debit Card</option>
       <option value="cash">Cash</option>
       <option value="insurance">Insurance</option>
       <option value="online">Online Transfer</option>
     </select>
 
+    <ng-container *ngIf="paymentMethod === 'card' || paymentMethod === 'online'">
+      <label class="modal-label">Mobile Money Phone (Campay)</label>
+      <input
+        class="modal-select"
+        type="text"
+        [(ngModel)]="phoneNumber"
+        title="Campay mobile money number"
+        placeholder="e.g. 6XXXXXXXX" />
+
+      <label class="modal-label">Operator (optional)</label>
+      <input
+        class="modal-select"
+        type="text"
+        [(ngModel)]="operator"
+        title="Mobile operator"
+        placeholder="MTN or ORANGE" />
+    </ng-container>
+
     <div class="modal-actions">
       <button class="btn-cancel" (click)="closePayModal()">Cancel</button>
       <button class="btn-confirm" (click)="confirmPayment()" [disabled]="paying">
-        {{ paying ? 'Processing...' : 'Confirm Payment' }}
+        {{ paying ? 'Processing...' : ((paymentMethod === 'card' || paymentMethod === 'online') ? 'Pay with Campay' : 'Confirm Payment') }}
       </button>
     </div>
   </div>

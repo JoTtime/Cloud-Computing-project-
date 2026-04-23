@@ -28,6 +28,14 @@ export interface BillingResponse {
   invoice?: Invoice;
   invoices?: Invoice[];
   stats?: { totalEarned: number; pendingInvoices: number };
+  payment?: {
+    reference?: string;
+    status?: string;
+    paid?: boolean;
+    message?: string;
+    providerResponse?: Record<string, unknown>;
+    invoice?: Invoice;
+  };
 }
 
 @Injectable({
@@ -78,6 +86,25 @@ export class BillingService {
     return this.http.patch<BillingResponse>(
       `${this.apiUrl}/invoices/${id}/pay`,
       { paymentMethod },
+      { headers: this.getHeaders() }
+    );
+  }
+
+  initiateCampayPayment(
+    id: string,
+    payload: { phoneNumber: string; operator?: string }
+  ): Observable<BillingResponse> {
+    return this.http.post<BillingResponse>(
+      `${this.apiUrl}/invoices/${id}/pay/campay/initiate`,
+      payload,
+      { headers: this.getHeaders() }
+    );
+  }
+
+  verifyCampayPayment(id: string, reference: string): Observable<BillingResponse> {
+    return this.http.post<BillingResponse>(
+      `${this.apiUrl}/invoices/${id}/pay/campay/verify`,
+      { reference },
       { headers: this.getHeaders() }
     );
   }

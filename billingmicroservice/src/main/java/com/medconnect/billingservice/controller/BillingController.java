@@ -1,6 +1,8 @@
 package com.medconnect.billingservice.controller;
 
 import com.medconnect.billingservice.dto.CreateInvoiceRequest;
+import com.medconnect.billingservice.dto.CampayInitiateRequest;
+import com.medconnect.billingservice.dto.CampayVerifyRequest;
 import com.medconnect.billingservice.dto.PayInvoiceRequest;
 import com.medconnect.billingservice.entity.Invoice;
 import com.medconnect.billingservice.entity.PricingRule;
@@ -59,6 +61,24 @@ public class BillingController {
             @Valid @RequestBody PayInvoiceRequest req) {
         Invoice inv = billingService.payInvoice(user, id, req);
         return ResponseEntity.ok(Map.of("success", true, "invoice", inv));
+    }
+
+    @PostMapping("/invoices/{id}/pay/campay/initiate")
+    public ResponseEntity<Map<String, Object>> initiateCampayPayment(
+            @AuthenticationPrincipal AuthenticatedUser user,
+            @PathVariable String id,
+            @Valid @RequestBody CampayInitiateRequest req) {
+        Map<String, Object> result = billingService.initiateCampayPayment(user, id, req);
+        return ResponseEntity.ok(Map.of("success", true, "payment", result));
+    }
+
+    @PostMapping("/invoices/{id}/pay/campay/verify")
+    public ResponseEntity<Map<String, Object>> verifyCampayPayment(
+            @AuthenticationPrincipal AuthenticatedUser user,
+            @PathVariable String id,
+            @Valid @RequestBody CampayVerifyRequest req) {
+        Map<String, Object> result = billingService.verifyCampayPayment(user, id, req.getReference());
+        return ResponseEntity.ok(Map.of("success", true, "payment", result));
     }
 
     /** Doctor cancels an invoice */
