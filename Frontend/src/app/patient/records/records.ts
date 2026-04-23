@@ -1,9 +1,9 @@
-import { Component, OnInit, ViewChild, ElementRef } from '@angular/core';
+import { Component, OnInit} from '@angular/core';
 import { Router, RouterModule } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { SharedHeader } from '../../features/shared-header/shared-header';
 import { UploadDoc, DocumentResponse } from '../../services/upload-doc';
-import { ActivatedRoute } from '@angular/router';
 
 interface MedicalDocument {
   id: string;
@@ -17,28 +17,27 @@ interface MedicalDocument {
 @Component({
   selector: 'app-records',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule],
+  imports: [CommonModule, FormsModule, SharedHeader, RouterModule],
   templateUrl: './records.html',
-  styleUrls: ['./records.css']
+  styleUrl: './records.css',
 })
-export class Records implements OnInit {
-  @ViewChild('fileUpload') fileUpload!: ElementRef<HTMLInputElement>;
-
+export class Records implements OnInit{
   userName: string = '';
   searchQuery: string = '';
   selectedCategory: string = 'all';
   loading: boolean = true;
-
-  categories = [
+  
+   categories = [
     { value: 'all', label: 'All Categories' },
-    { value: 'lab_results', label: 'Lab Results', color: '#0369a1' },
-    { value: 'imaging', label: 'Imaging', color: '#0891b2' },
-    { value: 'prescription', label: 'Prescription', color: '#ea580c' },
-    { value: 'clinical_notes', label: 'Clinical Notes', color: '#7c3aed' },
-    { value: 'vaccination_records', label: 'Vaccination Records', color: '#16a34a' },
-    { value: 'others', label: 'Other', color: '#6b8090' }
+    { value: 'lab_results', label: 'Lab Results', color: '#4A90E2' },
+    { value: 'imaging', label: 'Imaging', color: '#5FB3B3' },
+    { value: 'prescription', label: 'Prescription', color: '#FFA07A' },
+    { value: 'clinical_notes', label: 'Clinical Notes', color: '#9B59B6' },
+    { value: 'vaccination_records', label: 'Vaccination Records', color: '#28A745' },
+    { value: 'others', label: 'Other', color: '#6C757D' }
   ];
 
+  // Category label mapping
   private categoryLabels: { [key: string]: string } = {
     'lab_results': 'Lab Results',
     'imaging': 'Imaging',
@@ -48,22 +47,16 @@ export class Records implements OnInit {
     'others': 'Other'
   };
 
+ 
   allDocuments: MedicalDocument[] = [];
   filteredDocuments: MedicalDocument[] = [];
 
   constructor(
-    private route: ActivatedRoute,
     private router: Router,
     private uploadDocService: UploadDoc
   ) {}
 
   ngOnInit(): void {
-    this.route.queryParams.subscribe(params => {
-    if (params['search']) {
-      this.searchQuery = params['search'];
-      this.filterDocuments();
-    }
-  });
     this.loadDocuments();
   }
 
@@ -78,6 +71,7 @@ export class Records implements OnInit {
       error: (error) => {
         console.error('Error loading documents:', error);
         this.loading = false;
+        // Show empty state or error message
         this.allDocuments = [];
         this.filteredDocuments = [];
       }
@@ -87,40 +81,57 @@ export class Records implements OnInit {
   private mapDocumentResponse(doc: DocumentResponse): MedicalDocument {
     const category = this.categories.find(c => c.value === doc.category);
     const docDate = new Date(doc.docDate);
+    
     return {
       id: doc._id,
       title: doc.docTitle,
       category: this.categoryLabels[doc.category] || doc.category,
-      categoryColor: category?.color || '#6b8090',
-      date: docDate.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
-      fileSize: 'N/A'
+      categoryColor: category?.color || '#6C757D',
+      date: docDate.toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'short', 
+        day: 'numeric' 
+      }),
+      fileSize: 'N/A' // Backend doesn't provide file size
     };
+  }
+
+  onSearch(): void {
+    this.filterDocuments();
+  }
+
+  onCategoryChange(): void {
+    this.filterDocuments();
   }
 
   filterDocuments(): void {
     this.filteredDocuments = this.allDocuments.filter(doc => {
       const matchesSearch = doc.title.toLowerCase().includes(this.searchQuery.toLowerCase());
       const matchesCategory = this.selectedCategory === 'all' || 
-                               doc.category.toLowerCase().includes(this.selectedCategory.replace('_', ' '));
+                             doc.category.toLowerCase().includes(this.selectedCategory);
       return matchesSearch && matchesCategory;
     });
   }
 
-  triggerFileUpload(): void {
-    this.fileUpload.nativeElement.click();
-  }
-
-  onFileSelected(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    if (input.files && input.files.length > 0) {
-      const file = input.files[0];
-      // Navigate to upload page with file data
-      this.router.navigate(['/patient/medical-records/upload'], { state: { file } });
-      input.value = ''; // reset
-    }
+  uploadDocument(): void {
+    // FIXED: Use correct route path that matches app.routes.ts
+    this.router.navigate(['/medical-records/upload']);
   }
 
   viewDocument(docId: string): void {
-    this.router.navigate(['/patient/medical-records', docId]);
+    // FIXED: Use correct route path that matches app.routes.ts
+    this.router.navigate(['/medical-records', docId]);
   }
+
+  logout(): void {
+    this.router.navigate(['/login']);
+  }
+
+  getCategoryColor(category: string): string {
+    const cat = this.categories.find(c => 
+      category.toLowerCase().includes(c.value)
+    );
+    return cat?.color || '#666';
+  }
+
 }
