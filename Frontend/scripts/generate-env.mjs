@@ -5,10 +5,10 @@ const outputPath = resolve(process.cwd(), 'src/environments/environment.prod.ts'
 
 const env = {
   production: true,
-  apiUrl: process.env.USER_API_URL || 'http://localhost:8086/api',
-  appointmentApiUrl: process.env.APPOINTMENT_API_URL || 'http://localhost:8087/api',
-  doctorApiUrl: process.env.DOCTOR_API_URL || 'http://localhost:8088/api',
-  patientApiUrl: process.env.PATIENT_API_URL || 'http://localhost:8089/api'
+  apiUrl: process.env.USER_API_URL || 'https://usermicroservice-omdq.onrender.com/api',
+  appointmentApiUrl: process.env.APPOINTMENT_API_URL || 'https://appointmentmicroservice.onrender.com/api',
+  doctorApiUrl: process.env.DOCTOR_API_URL || 'https://doctormicroservice.onrender.com/api',
+  patientApiUrl: process.env.PATIENT_API_URL || 'https://patientmicroservice.onrender.com/api'
 };
 
 const fileContent = `export const environment = ${JSON.stringify(env, null, 2)};\n`;
