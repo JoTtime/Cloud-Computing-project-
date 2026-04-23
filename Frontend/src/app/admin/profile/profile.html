@@ -1,0 +1,56 @@
+<div class="profile-page">
+  <!-- Page Header -->
+  <div class="page-header">
+    <h1 class="page-title">Admin Profile</h1>
+    <p class="page-subtitle">View and update your account information</p>
+  </div>
+
+  <!-- Loading -->
+  <div class="loading-state" *ngIf="loading">
+    <div class="spinner"></div>
+    <p>Loading profile...</p>
+  </div>
+
+  <!-- Error -->
+  <div class="error-state" *ngIf="error && !loading">
+    <p>{{ error }}</p>
+    <button class="retry-btn" (click)="loadProfile()">Retry</button>
+  </div>
+
+  <!-- Profile Form -->
+  <form *ngIf="!loading && !error" [formGroup]="profileForm" (ngSubmit)="saveProfile()" class="profile-form">
+    <div class="form-grid">
+      <div class="form-field">
+        <label>First Name</label>
+        <input type="text" formControlName="firstName" class="form-control" placeholder="First name">
+      </div>
+      <div class="form-field">
+        <label>Last Name</label>
+        <input type="text" formControlName="lastName" class="form-control" placeholder="Last name">
+      </div>
+      <div class="form-field">
+        <label>Email</label>
+        <input type="email" formControlName="email" class="form-control" readonly>
+        <small>Email cannot be changed</small>
+      </div>
+      <div class="form-field">
+        <label>Phone</label>
+        <input type="tel" formControlName="phone" class="form-control" placeholder="Phone number">
+      </div>
+      <div class="form-field full-width">
+        <label>Role</label>
+        <input type="text" formControlName="role" class="form-control" readonly>
+      </div>
+    </div>
+
+    <div class="form-actions">
+      <button type="button" class="btn-cancel" (click)="resetForm()">Cancel</button>
+      <button type="submit" class="btn-save" [disabled]="profileForm.invalid || saving">
+        {{ saving ? 'Saving...' : 'Save Changes' }}
+      </button>
+    </div>
+
+    <div class="success-message" *ngIf="successMessage">{{ successMessage }}</div>
+    <div class="error-message" *ngIf="formError">{{ formError }}</div>
+  </form>
+</div>

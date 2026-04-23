@@ -1,0 +1,131 @@
+<div class="page-loading" *ngIf="loading">
+  <div class="loading-pulse"></div>
+</div>
+
+<div class="error-message" *ngIf="error && !loading">
+  <p>{{ error }}</p>
+  <button class="retry-btn" (click)="loadData()">Retry</button>
+</div>
+
+<div class="content-inner" *ngIf="!loading && !error">
+
+  <!-- Welcome Banner (matching the image) -->
+  <section class="welcome-banner">
+    <div class="banner-content">
+      <div class="banner-left">
+        <div class="welcome-badge">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+          </svg>
+          WELCOME BACK
+        </div>
+        <h1 class="welcome-title">Admin overview</h1>
+        <p class="welcome-sub">Manage every account, monitor growth and dive into platform analytics.</p>
+        <button class="analytics-btn" (click)="openAnalytics()">Open analytics</button>
+      </div>
+      <div class="banner-right">
+        <svg width="140" height="100" viewBox="0 0 200 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M20 100 L80 40 L140 60 L180 20" stroke="#0891b2" stroke-width="3" fill="none"/>
+          <circle cx="80" cy="40" r="8" fill="#0369a1"/>
+          <circle cx="140" cy="60" r="8" fill="#0891b2"/>
+          <circle cx="180" cy="20" r="8" fill="#0e7490"/>
+        </svg>
+      </div>
+    </div>
+  </section>
+
+  <!-- Stats Row (dynamic) -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-icon blue">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+          <circle cx="9" cy="7" r="4"/>
+        </svg>
+      </div>
+      <div>
+        <div class="stat-label">TOTAL PATIENTS</div>
+        <div class="stat-value">{{ totalPatients }}</div>
+        <div class="stat-trend">+{{ newPatientsThisWeek }} this week</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon teal">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 2a5 5 0 1 0 0 10A5 5 0 0 0 12 2z"/>
+          <path d="M12 12v2m0 4h.01M8 22h8a2 2 0 0 0 2-2v-1a5 5 0 0 0-10 0v1a2 2 0 0 0 2 2z"/>
+        </svg>
+      </div>
+      <div>
+        <div class="stat-label">TOTAL DOCTORS</div>
+        <div class="stat-value">{{ totalDoctors }}</div>
+        <div class="stat-trend">{{ doctorsOnDuty }} on duty</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon orange">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="12" y1="8" x2="12" y2="12"/>
+          <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+      </div>
+      <div>
+        <div class="stat-label">NEW TODAY</div>
+        <div class="stat-value">{{ newToday }}</div>
+        <div class="stat-trend">{{ newPatientsToday }} patients · {{ newDoctorsToday }} doctors</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon green">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+        </svg>
+      </div>
+      <div>
+        <div class="stat-label">PLATFORM HEALTH</div>
+        <div class="stat-value">{{ platformHealth }}%</div>
+        <div class="stat-trend">All systems normal</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent Doctors & Patients -->
+  <div class="two-col">
+    <div class="recent-card">
+      <div class="card-header">
+        <h2 class="card-title">Recent doctors</h2>
+        <button class="manage-btn" (click)="manageDoctors()">Manage all →</button>
+      </div>
+      <div class="recent-list">
+        <div class="recent-item" *ngFor="let doc of recentDoctors">
+          <div class="item-avatar" [style.background]="doc.avatarColor">{{ doc.initials }}</div>
+          <div class="item-info">
+            <strong>{{ doc.name }}</strong>
+            <span>{{ doc.specialty }}</span>
+          </div>
+          <div class="item-status" [class.online]="doc.online">● {{ doc.online ? 'Online' : 'Offline' }}</div>
+        </div>
+        <div *ngIf="recentDoctors.length === 0" class="no-data">No doctors found</div>
+      </div>
+    </div>
+    <div class="recent-card">
+      <div class="card-header">
+        <h2 class="card-title">Latest patients</h2>
+        <button class="manage-btn" (click)="managePatients()">Manage all →</button>
+      </div>
+      <div class="recent-list">
+        <div class="recent-item" *ngFor="let pat of latestPatients">
+          <div class="item-avatar" [style.background]="pat.avatarColor">{{ pat.initials }}</div>
+          <div class="item-info">
+            <strong>{{ pat.name }}</strong>
+            <span>{{ pat.location }} · {{ pat.age }}yrs</span>
+          </div>
+          <div class="item-date">{{ pat.lastVisit }}</div>
+        </div>
+        <div *ngIf="latestPatients.length === 0" class="no-data">No patients yet</div>
+      </div>
+    </div>
+  </div>
+
+</div>

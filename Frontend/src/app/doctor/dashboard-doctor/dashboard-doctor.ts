@@ -65,6 +65,9 @@ export class DashboardDoctor implements OnInit {
   toggleNotifications(): void {
     this.hasNotifications = false;
   }
+  goToProfile(): void {
+  this.router.navigate(['/doctor/profile']);
+}
 
   logout(): void {
     localStorage.removeItem('currentUser');

@@ -1,0 +1,68 @@
+<div class="profile-page">
+  <div class="page-header">
+    <h1 class="page-title">Doctor Profile</h1>
+    <p class="page-subtitle">View and update your professional information</p>
+  </div>
+
+  <div class="loading-state" *ngIf="loading">
+    <div class="spinner"></div>
+    <p>Loading profile...</p>
+  </div>
+
+  <div class="error-state" *ngIf="error && !loading">
+    <p>{{ error }}</p>
+    <button class="retry-btn" (click)="loadProfile()">Retry</button>
+  </div>
+
+  <form *ngIf="!loading && !error" [formGroup]="profileForm" (ngSubmit)="saveProfile()" class="profile-form">
+    <div class="form-grid">
+      <div class="form-field">
+        <label>First Name</label>
+        <input type="text" formControlName="firstName" class="form-control" placeholder="First name">
+      </div>
+      <div class="form-field">
+        <label>Last Name</label>
+        <input type="text" formControlName="lastName" class="form-control" placeholder="Last name">
+      </div>
+      <div class="form-field">
+        <label>Email</label>
+        <input type="email" formControlName="email" class="form-control" readonly>
+        <small>Email cannot be changed</small>
+      </div>
+      <div class="form-field">
+        <label>Phone</label>
+        <input type="tel" formControlName="phone" class="form-control" placeholder="Phone number">
+      </div>
+      <div class="form-field">
+        <label>Specialty</label>
+        <input type="text" formControlName="specialty" class="form-control" placeholder="e.g., Cardiology">
+      </div>
+      <div class="form-field">
+        <label>Hospital / Clinic</label>
+        <input type="text" formControlName="hospital" class="form-control" placeholder="Hospital name">
+      </div>
+      <div class="form-field">
+        <label>Years of Experience</label>
+        <input type="number" formControlName="yearsOfExperience" class="form-control" placeholder="Years">
+      </div>
+      <div class="form-field">
+        <label>Consultation Fee ($)</label>
+        <input type="number" formControlName="consultationFee" class="form-control" placeholder="Amount">
+      </div>
+      <div class="form-field full-width">
+        <label>Bio</label>
+        <textarea formControlName="bio" rows="4" class="form-control" placeholder="Tell patients about yourself..."></textarea>
+      </div>
+    </div>
+
+    <div class="form-actions">
+      <button type="button" class="btn-cancel" (click)="resetForm()">Cancel</button>
+      <button type="submit" class="btn-save" [disabled]="profileForm.invalid || saving">
+        {{ saving ? 'Saving...' : 'Save Changes' }}
+      </button>
+    </div>
+
+    <div class="success-message" *ngIf="successMessage">{{ successMessage }}</div>
+    <div class="error-message" *ngIf="formError">{{ formError }}</div>
+  </form>
+</div>

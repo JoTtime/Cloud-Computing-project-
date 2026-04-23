@@ -37,6 +37,9 @@ export class Dashboard implements OnInit {
     // Optional: clear search input after navigation
     // this.searchQuery = '';
   }
+  goToProfile(): void {
+  this.router.navigate(['/patient/profile']);
+}
   logout(): void {
     localStorage.removeItem('currentUser');
     localStorage.removeItem('token'); // if you store a token

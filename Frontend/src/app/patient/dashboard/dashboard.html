@@ -101,7 +101,7 @@
         </button>
 
         <!-- User profile -->
-        <div class="topbar-profile">
+        <div class="topbar-profile" (click)="goToProfile()">
           <div class="profile-avatar">{{ userName.charAt(0) | uppercase }}</div>
           <div class="profile-info">
             <span class="profile-name">{{ userName }}</span>

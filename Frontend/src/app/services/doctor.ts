@@ -26,6 +26,12 @@ export interface DoctorResponse {
   doctors?: Doctor[];
 }
 
+export interface ProfileResponse {
+  success: boolean;
+  message?: string;
+  user?: any;
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -70,5 +76,11 @@ export class DoctorService {
       { headers: this.getHeaders() }
     );
   }
-  
+  getProfile(): Observable<ProfileResponse> {
+  return this.http.get<ProfileResponse>(`${this.apiUrl}/profile`, { headers: this.getHeaders() });
+}
+
+updateProfile(profileData: any): Observable<ProfileResponse> {
+  return this.http.patch<ProfileResponse>(`${this.apiUrl}/profile`, profileData, { headers: this.getHeaders() });
+}
 }

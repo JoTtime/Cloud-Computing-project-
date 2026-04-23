@@ -1,0 +1,75 @@
+<div class="analytics-page">
+  <!-- Page Header -->
+  <div class="page-header">
+    <h1 class="page-title">Platform Analytics</h1>
+    <p class="page-subtitle">Track doctor and patient registrations across time and specialties.</p>
+  </div>
+
+  <!-- 📊 4 Stat Cards (dynamic per period) -->
+  <div class="stats-row" *ngIf="!loading">
+  <div class="stat-card-small" *ngFor="let stat of statCards">
+    <div class="stat-header">
+      <span class="stat-label">{{ stat.label }}</span>
+      <span class="stat-change">{{ stat.changeText }}</span>
+    </div>
+    <div class="stat-value">{{ stat.value | number }}</div>
+    <div class="stat-footer">{{ stat.footer }}</div>
+  </div>
+</div>
+
+  <!-- ⏱ Period Selector -->
+  <div class="period-selector">
+    <button class="period-btn" [class.active]="selectedPeriod === 'daily'" (click)="setPeriod('daily')">Daily</button>
+    <button class="period-btn" [class.active]="selectedPeriod === 'monthly'" (click)="setPeriod('monthly')">Monthly</button>
+    <button class="period-btn" [class.active]="selectedPeriod === 'yearly'" (click)="setPeriod('yearly')">Yearly</button>
+  </div>
+
+  <!-- 🔄 Loading State -->
+  <div class="loading-state" *ngIf="loading">
+    <div class="spinner"></div>
+    <p>Loading analytics...</p>
+  </div>
+
+  <!-- ❌ Error State -->
+  <div class="error-state" *ngIf="error && !loading">
+    <p>{{ error }}</p>
+    <button class="retry-btn" (click)="loadAllData()">Retry</button>
+  </div>
+
+  <!-- 📈 Charts (only visible when loaded successfully) -->
+  <div *ngIf="!loading && !error">
+    <!-- Registrations Chart -->
+    <div class="chart-card">
+      <div class="chart-header">
+        <h2 class="chart-title">Registrations — {{ selectedPeriodLabel }}</h2>
+        <p class="chart-subtitle">New patients vs new doctors per period</p>
+      </div>
+      <canvas id="registrationsChart" width="800" height="300" style="width:100%; height:300px;"></canvas>
+    </div>
+
+    <!-- Two columns: Doctors by specialty + Patient status -->
+    <div class="two-columns">
+      <div class="stat-card">
+        <h3 class="card-title">Doctors by specialty</h3>
+        <div class="chart-container">
+          <canvas id="specialtyChart" width="400" height="300" style="width:100%; height:250px;"></canvas>
+        </div>
+      </div>
+      <div class="stat-card">
+        <h3 class="card-title">Patient status</h3>
+        <div class="chart-container pie-container">
+          <canvas id="patientStatusChart" width="400" height="300" style="width:100%; height:250px;"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cumulative growth chart -->
+    <div class="chart-card">
+      <div class="chart-header">
+        <h2 class="chart-title">Cumulative growth</h2>
+        <p class="chart-subtitle">Total patients onboarded across the selected period</p>
+      </div>
+      <canvas id="cumulativeChart" width="800" height="300" style="width:100%; height:300px;"></canvas>
+    </div>
+  </div>
+</div>
