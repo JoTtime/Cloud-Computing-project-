@@ -86,18 +86,15 @@ export class Signup {
           
           if (response.success && response.data) {
             const user = response.data.user;
-            console.log('📝 User created:', user);
-            console.log('📝 User type:', user.userType);
-            
-            // FIXED: Always go to dashboard, modal will show automatically for unverified doctors
+
             if (user.userType === 'doctor') {
-              console.log('📝 Redirecting to doctor dashboard...');
-              this.router.navigate(['/doctor-dashboard']);
-            } else if (user.userType === 'patient') {
-              console.log('📝 Redirecting to patient dashboard...');
-              this.router.navigate(['/patient-dashboard']);
-            } else {
+              // Doctors must wait for admin approval — do NOT redirect to dashboard
               this.router.navigate(['/login']);
+              alert('Your doctor account has been created and is pending admin approval. You will be able to log in once approved.');
+            } else if (user.userType === 'admin') {
+              this.router.navigate(['/admin-dashboard']);
+            } else {
+              this.router.navigate(['/patient-dashboard']);
             }
           }
         },

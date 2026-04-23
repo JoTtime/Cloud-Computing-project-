@@ -3,6 +3,7 @@ package com.example.usermicroservice.dto.response;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.example.usermicroservice.Entity.UserType;
+import java.time.LocalDateTime;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class UserResponse {
@@ -14,6 +15,7 @@ public class UserResponse {
     private String phone;
     private String address;
     private UserType userType;
+    private LocalDateTime createdAt;
 
     @JsonProperty("isVerified")
     private boolean verified;
@@ -72,6 +74,14 @@ public class UserResponse {
 
     public void setUserType(UserType userType) {
         this.userType = userType;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
     }
 
     public boolean isVerified() {

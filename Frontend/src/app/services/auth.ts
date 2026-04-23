@@ -11,7 +11,7 @@ export interface User {
   lastName: string;
   phone?: string;
   address?: string;
-  userType: 'patient' | 'doctor';
+  userType: 'patient' | 'doctor' | 'admin';
   isVerified: boolean;
   token?: string;
 }
@@ -53,7 +53,7 @@ export class Auth {
     return !!this.currentUserValue;
   }
 
-  public get userType(): 'patient' | 'doctor' | null {
+  public get userType(): 'patient' | 'doctor' | 'admin' | null {
     return this.currentUserValue?.userType || null;
   }
 
@@ -116,7 +116,7 @@ export class Auth {
     localStorage.removeItem('currentUser');
     localStorage.removeItem('token');
     this.currentUserSubject.next(null);
-    this.router.navigate(['/auth/signin']);
+    this.router.navigate(['/login']);
   }
 
   forgotPassword(email: string): Observable<AuthResponse> {
@@ -153,7 +153,15 @@ export class Auth {
       errorMessage = `Error: ${error.error.message}`;
     } else {
       // Server-side error
-      errorMessage = error.error?.message || errorMessage;
+      if (typeof error.error === 'string' && error.error.trim()) {
+        errorMessage = error.error;
+      } else {
+        errorMessage =
+          error.error?.message ||
+          error.error?.error ||
+          error.message ||
+          `Request failed with status ${error.status}`;
+      }
     }
     
     return throwError(() => new Error(errorMessage));

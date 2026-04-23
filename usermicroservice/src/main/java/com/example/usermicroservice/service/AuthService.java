@@ -1,5 +1,6 @@
 package com.example.usermicroservice.service;
 
+import com.example.usermicroservice.Entity.UserType;
 import com.example.usermicroservice.Entity.UserAccount;
 import com.example.usermicroservice.repository.UserAccountRepository;
 import com.example.usermicroservice.service.JwtService;
@@ -45,8 +46,12 @@ public class AuthService {
         user.setLastName(request.getLastName().trim());
         user.setPhone(trimToNull(request.getPhone()));
         user.setAddress(trimToNull(request.getAddress()));
+        if (request.getUserType() == UserType.admin) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Admin accounts cannot be created via signup");
+        }
         user.setUserType(request.getUserType());
-        user.setVerified(false);
+        // Doctors require admin approval before login; patients can login immediately.
+        user.setVerified(request.getUserType() != UserType.doctor);
 
         userAccountRepository.save(user);
 
@@ -64,6 +69,9 @@ public class AuthService {
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid email or password");
+        }
+        if (user.getUserType() == UserType.doctor && !user.isVerified()) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Your doctor account is pending admin approval");
         }
 
         String token = jwtService.generateToken(user);
@@ -83,6 +91,7 @@ public class AuthService {
         dto.setAddress(user.getAddress());
         dto.setUserType(user.getUserType());
         dto.setVerified(user.isVerified());
+        dto.setCreatedAt(user.getCreatedAt());
         return dto;
     }
 

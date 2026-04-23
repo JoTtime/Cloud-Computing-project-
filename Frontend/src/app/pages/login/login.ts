@@ -55,24 +55,19 @@ signinForm: FormGroup;
           
           if (response.success && response.data) {
             const user = response.data.user;
-            console.log('🔑 User:', user);
-            console.log('🔑 User type:', user.userType);
-            
-            // FIXED: Always go to dashboard, modal will show automatically for unverified doctors
+
             if (user.userType === 'doctor') {
-              console.log('🔑 Redirecting to doctor dashboard...');
               this.router.navigate(['/doctor-dashboard']);
-            } else if (user.userType === 'patient') {
-              console.log('🔑 Redirecting to patient dashboard...');
-              this.router.navigate(['/patient-dashboard']);
+            } else if (user.userType === 'admin') {
+              this.router.navigate(['/admin-dashboard']);
             } else {
-              this.router.navigate(['/login']);
+              this.router.navigate(['/patient-dashboard']);
             }
           }
         },
         error: (error) => {
           this.loading = false;
-          this.errorMessage = error.message || 'Login failed. Please try again.';
+          this.errorMessage = error.error?.message || error.message || 'Login failed. Please try again.';
           console.error('🔴 Login error:', error);
         }
       });

@@ -25,6 +25,11 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/account-settings/account-settings')
       .then(m => m.AccountSettings)
   },
+  {
+    path: 'admin-dashboard',
+    loadComponent: () => import('./admin/dashboard-admin/dashboard-admin')
+      .then(m => m.DashboardAdmin)
+  },
 
   // ==========================================
   // PATIENT ROUTES
