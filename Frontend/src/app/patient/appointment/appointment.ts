@@ -1,305 +1,194 @@
-import { CommonModule } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
-import { Router } from '@angular/router';
-import { SharedHeader } from '../../features/shared-header/shared-header';
+import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { forkJoin } from 'rxjs';
-import { MessageService } from '../../services/message';
-import { ConnectionService } from '../../services/connection';
-import { AppointmentService, Appointment as AppointmentModel } from '../../services/appointment.service';
+import { RouterModule, Router } from '@angular/router';
 
-
-interface Appointmentattributes {
+interface AppointmentData {
   id: string;
-  doctorId?: string;
-  doctorName: string;
-  specialty: string;
-  date: string;
+  patientName: string;
   time: string;
-  location: string;
-  status: 'confirmed' | 'pending' | 'completed' | 'cancelled' | 'rejected';
-  type: 'in-person' | 'video';
-  imageUrl: string;
-  connectionId?: string;
-  reason?: string;
-  rawDate?: Date;
+  specialty: string;
+  type: 'In-person' | 'Video call';
+  date: Date;
+  specialtyColor?: string;
 }
 
 @Component({
   selector: 'app-appointment',
   standalone: true,
-  imports: [CommonModule, SharedHeader, FormsModule],
+  imports: [CommonModule, RouterModule, FormsModule],
   templateUrl: './appointment.html',
-  styleUrl: './appointment.css',
+  styleUrls: ['./appointment.css']
 })
-export class Appointment implements OnInit{
- userName: string = '';
-  activeTab: 'upcoming' | 'past' = 'upcoming';
-  
-  appointments: Appointmentattributes[] = [];
-  filteredAppointments: Appointmentattributes[] = [];
-  selectedAppointment: Appointmentattributes | null = null;
-  
-  showCancelModal: boolean = false;
-  showMessageModal: boolean = false;
-  
-  messageText: string = '';
-  isLoading: boolean = false;
+export class Appointment implements OnInit {
+  currentDate = new Date();
+  currentMonth: number;
+  currentYear: number;
+  weekDays = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+  calendarDays: any[] = [];
+  todayAppointments: AppointmentData[] = [];
 
-  constructor(
-    private router: Router,
-    private messageService: MessageService,
-    private connectionService: ConnectionService,
-    private appointmentService: AppointmentService
-  ) {}
+  showModal = false;
+  newAppointment = {
+    patientName: '',
+    doctor: '',
+    date: '',
+    time: '',
+    type: 'In-person' as 'In-person' | 'Video call'
+  };
+
+  // Map doctor names to specialty and color
+  doctorSpecialtyMap: Record<string, { specialty: string; color: string }> = {
+    'Dr. Elena Rivera': { specialty: 'Cardiology', color: '#0369a1' },
+    'Dr. Aarav Patel': { specialty: 'General Practice', color: '#0891b2' },
+    'Dr. Chiamaka Okafor': { specialty: 'Pediatrics', color: '#ea580c' },
+    'Dr. Henrik Berg': { specialty: 'Neurology', color: '#7c3aed' }
+  };
+
+  allAppointments: AppointmentData[] = [
+    { id: '1', patientName: 'Amelia Chen', time: '09:30', specialty: 'Cardiology', type: 'In-person', date: new Date(2026, 3, 23), specialtyColor: '#0369a1' },
+    { id: '2', patientName: 'Marcus Hill', time: '10:15', specialty: 'Orthopedics', type: 'Video call', date: new Date(2026, 3, 23), specialtyColor: '#0891b2' },
+    { id: '3', patientName: 'Sofia Reyes', time: '11:00', specialty: 'Pediatrics', type: 'In-person', date: new Date(2026, 3, 23), specialtyColor: '#ea580c' },
+    { id: '4', patientName: 'Liam O.', time: '14:30', specialty: 'General', type: 'In-person', date: new Date(2026, 3, 24), specialtyColor: '#0891b2' },
+    { id: '5', patientName: 'Priya Sin.', time: '09:00', specialty: 'Consultation', type: 'Video call', date: new Date(2026, 3, 25), specialtyColor: '#7c3aed' },
+  ];
+
+  constructor(private router: Router) {
+    this.currentMonth = this.currentDate.getMonth();
+    this.currentYear = this.currentDate.getFullYear();
+  }
 
   ngOnInit(): void {
-    this.loadUserInfo();
-    this.loadAppointmentsAndConnections();
+    this.generateCalendar();
+    this.loadTodayAppointments();
   }
 
-  loadUserInfo(): void {
-    const storedUser = localStorage.getItem('currentUser');
-    if (storedUser) {
-      const user = JSON.parse(storedUser);
-      this.userName = `${user.firstName} ${user.lastName}`;
+  get currentMonthName(): string {
+    return this.currentDate.toLocaleString('default', { month: 'long' });
+  }
+
+  generateCalendar(): void {
+    const firstDayOfMonth = new Date(this.currentYear, this.currentMonth, 1);
+    const startDay = firstDayOfMonth.getDay();
+    const adjustedStart = (startDay === 0 ? 6 : startDay - 1);
+    const daysInMonth = new Date(this.currentYear, this.currentMonth + 1, 0).getDate();
+
+    const calendar: any[] = [];
+    const today = new Date();
+    today.setHours(0,0,0,0);
+
+    const prevMonthDays = new Date(this.currentYear, this.currentMonth, 0).getDate();
+    for (let i = adjustedStart - 1; i >= 0; i--) {
+      calendar.push({
+        date: prevMonthDays - i,
+        otherMonth: true,
+        isToday: false,
+        appointments: []
+      });
     }
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const cellDate = new Date(this.currentYear, this.currentMonth, d);
+      const isToday = cellDate.toDateString() === today.toDateString();
+      calendar.push({
+        date: d,
+        otherMonth: false,
+        isToday: isToday,
+        appointments: this.getAppointmentsForDate(cellDate)
+      });
+    }
+
+    const remaining = 42 - calendar.length;
+    for (let i = 1; i <= remaining; i++) {
+      calendar.push({
+        date: i,
+        otherMonth: true,
+        isToday: false,
+        appointments: []
+      });
+    }
+
+    this.calendarDays = calendar;
   }
 
-  // FIX 1: Load appointments and connections together
-  loadAppointmentsAndConnections(): void {
-    this.isLoading = true;
-    
-    // Use forkJoin to wait for both requests to complete
-    forkJoin({
-      appointments: this.appointmentService.getPatientAppointments(),
-      connections: this.connectionService.getPatientConnections()
-    }).subscribe({
-      next: ({ appointments, connections }) => {
-        console.log('📦 Loaded appointments:', appointments);
-        console.log('🔗 Loaded connections:', connections);
-
-        // Build connection map first
-        const connectionMap = new Map<string, string>();
-        if (connections.success && connections.connections) {
-          connections.connections.forEach(conn => {
-            if (conn.status === 'accepted') {
-              // Extract doctor ID - handle both populated and non-populated cases
-              const doctorId = typeof conn.doctor === 'string' 
-                ? conn.doctor 
-                : conn.doctor._id || conn.doctor.id;
-              
-              connectionMap.set(doctorId, conn._id);
-              console.log(`📍 Mapped doctor ${doctorId} to connection ${conn._id}`);
-            }
-          });
-        }
-
-        // Transform appointments with connection IDs
-        if (appointments.success && appointments.appointments) {
-          this.appointments = appointments.appointments.map(apt => {
-            // Extract doctor ID from appointment
-            const doctorId = typeof apt.doctor === 'string'
-              ? apt.doctor
-              : apt.doctor._id || apt.doctor.id;
-            
-            const doctorFirstName = typeof apt.doctor === 'string' 
-              ? 'Doctor' 
-              : apt.doctor.firstName || 'Doctor';
-            const doctorLastName = typeof apt.doctor === 'string'
-              ? ''
-              : apt.doctor.lastName || '';
-            const specialty = typeof apt.doctor === 'string'
-              ? 'General Practice'
-              : apt.doctor.specialty || 'General Practice';
-
-            const connectionId = connectionMap.get(doctorId);
-            
-            console.log(`🔍 Appointment for doctor ${doctorId}: connectionId = ${connectionId}`);
-
-            return {
-              id: apt._id,
-              doctorId: doctorId,
-              doctorName: `Dr. ${doctorFirstName} ${doctorLastName}`.trim(),
-              specialty: specialty,
-              date: this.formatDate(apt.date),
-              time: apt.startTime,
-              location: apt.location || 'Video Call',
-              status: apt.status,
-              type: apt.type,
-              imageUrl: '',
-              reason: apt.reason,
-              rawDate: new Date(apt.date),
-              connectionId: connectionId // Already assigned here
-            };
-          });
-
-          console.log('✅ Final appointments with connections:', this.appointments);
-        }
-
-        this.filterAppointments();
-        this.isLoading = false;
-      },
-      error: (error) => {
-        console.error('❌ Error loading data:', error);
-        this.isLoading = false;
-        this.filterAppointments();
-      }
-    });
+  getAppointmentsForDate(date: Date): AppointmentData[] {
+    return this.allAppointments.filter(apt => 
+      apt.date.getDate() === date.getDate() &&
+      apt.date.getMonth() === date.getMonth() &&
+      apt.date.getFullYear() === date.getFullYear()
+    );
   }
 
-  formatDate(dateString: string): string {
-    const date = new Date(dateString);
-    const options: Intl.DateTimeFormatOptions = { 
-      weekday: 'short', 
-      month: 'short', 
-      day: 'numeric',
-      year: 'numeric'
+  loadTodayAppointments(): void {
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    this.todayAppointments = this.allAppointments.filter(apt => 
+      apt.date.toDateString() === today.toDateString()
+    ).sort((a,b) => a.time.localeCompare(b.time));
+  }
+
+  changeMonth(delta: number): void {
+    let newMonth = this.currentMonth + delta;
+    let newYear = this.currentYear;
+    if (newMonth < 0) {
+      newMonth = 11;
+      newYear--;
+    } else if (newMonth > 11) {
+      newMonth = 0;
+      newYear++;
+    }
+    this.currentMonth = newMonth;
+    this.currentYear = newYear;
+    this.currentDate = new Date(newYear, newMonth, 1);
+    this.generateCalendar();
+  }
+
+  openNewAppointmentModal(): void {
+    this.showModal = true;
+  }
+
+  closeModal(): void {
+    this.showModal = false;
+    // Reset form
+    this.newAppointment = {
+      patientName: '',
+      doctor: '',
+      date: '',
+      time: '',
+      type: 'In-person'
     };
-    return date.toLocaleDateString('en-US', options);
   }
 
-  switchTab(tab: 'upcoming' | 'past'): void {
-    this.activeTab = tab;
-    this.filterAppointments();
-  }
-
-  filterAppointments(): void {
-    const now = new Date();
-    now.setHours(0, 0, 0, 0);
-    
-    console.log('🔍 Filtering appointments. Current date:', now);
-    console.log('📊 Total appointments:', this.appointments.length);
-    
-    if (this.activeTab === 'upcoming') {
-      this.filteredAppointments = this.appointments.filter(apt => {
-        if (!apt.rawDate) {
-          console.warn('⚠️ Appointment missing rawDate:', apt);
-          return false;
-        }
-        
-        const aptDate = new Date(apt.rawDate);
-        aptDate.setHours(0, 0, 0, 0);
-        
-        const isUpcoming = aptDate >= now && 
-          apt.status !== 'cancelled' && 
-          apt.status !== 'completed' &&
-          apt.status !== 'rejected';
-          
-        console.log(`${apt.doctorName} on ${apt.date}: upcoming=${isUpcoming}, status=${apt.status}, connectionId=${apt.connectionId}`);
-        return isUpcoming;
-      });
-    } else {
-      this.filteredAppointments = this.appointments.filter(apt => {
-        if (!apt.rawDate) {
-          console.warn('⚠️ Appointment missing rawDate:', apt);
-          return false;
-        }
-        
-        const aptDate = new Date(apt.rawDate);
-        aptDate.setHours(0, 0, 0, 0);
-        
-        const isPast = aptDate < now || 
-          apt.status === 'completed' || 
-          apt.status === 'cancelled' ||
-          apt.status === 'rejected';
-          
-        console.log(`${apt.doctorName} on ${apt.date}: past=${isPast}, status=${apt.status}`);
-        return isPast;
-      });
-    }
-    
-    console.log(`✅ Filtered ${this.filteredAppointments.length} ${this.activeTab} appointments`);
-  }
-
-  openCancelModal(appointment: Appointmentattributes): void {
-    this.selectedAppointment = appointment;
-    this.showCancelModal = true;
-  }
-
-  closeCancelModal(): void {
-    this.showCancelModal = false;
-    this.selectedAppointment = null;
-  }
-
-  confirmCancel(): void {
-    if (!this.selectedAppointment) return;
-
-    const reason = prompt('Please provide a reason for cancellation (optional):') || '';
-
-    this.appointmentService.cancelAppointment(this.selectedAppointment.id, reason).subscribe({
-      next: (response) => {
-        if (response.success) {
-          alert('Appointment cancelled successfully');
-          this.loadAppointmentsAndConnections();
-          this.closeCancelModal();
-        }
-      },
-      error: (error) => {
-        console.error('❌ Error cancelling appointment:', error);
-        alert('Failed to cancel appointment. Please try again.');
-      }
-    });
-  }
-
-  openMessageModal(appointment: Appointmentattributes): void {
-    console.log('💬 Opening message modal for:', appointment);
-    console.log('🔑 Connection ID:', appointment.connectionId);
-    
-    if (!appointment.connectionId) {
-      alert('Connection not found. Unable to send message to this doctor.');
-      console.error('❌ No connectionId for appointment:', appointment);
+  saveNewAppointment(): void {
+    if (!this.newAppointment.patientName || !this.newAppointment.doctor || !this.newAppointment.date || !this.newAppointment.time) {
+      alert('Please fill all fields');
       return;
     }
 
-    this.selectedAppointment = appointment;
-    this.messageText = '';
-    this.showMessageModal = true;
+    const selectedDoctor = this.doctorSpecialtyMap[this.newAppointment.doctor];
+    if (!selectedDoctor) return;
+
+    const appointmentDate = new Date(this.newAppointment.date);
+    const newId = (this.allAppointments.length + 1).toString();
+
+    const newApt: AppointmentData = {
+      id: newId,
+      patientName: this.newAppointment.patientName,
+      time: this.newAppointment.time,
+      specialty: selectedDoctor.specialty,
+      type: this.newAppointment.type,
+      date: appointmentDate,
+      specialtyColor: selectedDoctor.color
+    };
+
+    this.allAppointments.push(newApt);
+    this.generateCalendar();
+    this.loadTodayAppointments();
+    this.closeModal();
   }
 
-  closeMessageModal(): void {
-    this.showMessageModal = false;
-    this.selectedAppointment = null;
-    this.messageText = '';
-  }
-
-  sendMessage(): void {
-    if (!this.messageText.trim() || !this.selectedAppointment || !this.selectedAppointment.connectionId) {
-      console.warn('⚠️ Cannot send message: missing text or connection');
-      return;
-    }
-
-    console.log('📤 Sending message to connectionId:', this.selectedAppointment.connectionId);
-
-    this.messageService.sendMessage(
-      this.selectedAppointment.connectionId,
-      this.messageText.trim()
-    ).subscribe({
-      next: (response) => {
-        if (response.success) {
-          console.log('✅ Message sent successfully');
-          alert('Message sent successfully!');
-          this.closeMessageModal();
-        }
-      },
-      error: (error) => {
-        console.error('❌ Error sending message:', error);
-        console.error('Error details:', {
-          status: error.status,
-          message: error.error?.message || error.message,
-          error: error.error
-        });
-        alert(`Failed to send message: ${error.error?.message || 'Please try again.'}`);
-      }
-    });
-  }
-
-  joinVideoCall(appointment: Appointmentattributes): void {
-    console.log('📹 Joining video call:', appointment.id);
-    alert('Video call feature coming soon!');
-  }
-
-  logout(): void {
-    this.router.navigate(['login']);
+  viewAppointment(appointment: AppointmentData): void {
+    console.log('View appointment', appointment);
+    // Optional: navigate to detail page
   }
 }
