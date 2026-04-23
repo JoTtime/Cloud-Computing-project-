@@ -95,6 +95,16 @@ public class AppointmentController {
         );
     }
 
+    @GetMapping("/{appointmentId}/status")
+    public ResponseEntity<java.util.Map<String, String>> getAppointmentStatus(
+            @PathVariable String appointmentId,
+            @RequestHeader("Authorization") String authorization
+    ) {
+        jwtService.authenticate(authorization);
+        String status = appointmentService.getAppointmentStatus(appointmentId);
+        return ResponseEntity.ok(java.util.Map.of("status", status));
+    }
+
     @PatchMapping("/{appointmentId}/cancel")
     public ResponseEntity<AppointmentResponse> cancelAppointment(
             @PathVariable String appointmentId,

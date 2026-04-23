@@ -1,15 +1,15 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { SharedHeader } from '../../features/shared-header/shared-header';
 import { RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
-import { forkJoin, Subscription } from 'rxjs';
+import { forkJoin } from 'rxjs';
+import { BillingService, Invoice } from '../../services/billing.service';
 import { UploadDoc, DocumentResponse } from '../../services/upload-doc';
 import { ConnectionService } from '../../services/connection';
 import { AppointmentService, Appointment as AppointmentModel } from '../../services/appointment.service';
 import { PatientProfileService } from '../../services/patient-profile';
-import { NotificationService } from '../../services/notification';
 
 
 
@@ -64,11 +64,11 @@ interface CalendarDay {
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.css',
 })
-export class Dashboard implements OnInit, OnDestroy {
+export class Dashboard implements OnInit{
 
    userName: string = '';
   loading: boolean = true;
-  
+
   stats: StatCard[] = [
     {
       title: 'Total Documents',
@@ -102,11 +102,22 @@ export class Dashboard implements OnInit, OnDestroy {
       iconColor: '#28A745',
       bgColor: '#E8F5E9'
     }
+    ,
+    // Billing quick stat
+    {
+      title: 'Outstanding Bills',
+      value: 0,
+      subtitle: 'Loading...',
+      iconType: 'billing',
+      iconColor: '#3b5bdb',
+      bgColor: '#F0F7FF'
+    }
   ];
 
   recentDocuments: Document[] = [];
   healthSummary: HealthInfo[] = [];
-  private notificationRealtimeSubscription?: Subscription;
+  // recent invoices for dashboard widget
+  invoices: Invoice[] = [];
 
   healthTip = {
     title: 'Health Tip of the Day',
@@ -134,29 +145,17 @@ export class Dashboard implements OnInit, OnDestroy {
   };
 
   constructor(
-    private router: Router,
+    public router: Router,
     private uploadDocService: UploadDoc,
     private connectionService: ConnectionService,
     private appointmentService: AppointmentService,
     private patientProfileService: PatientProfileService,
-    private notificationService: NotificationService
+    private billingService: BillingService
   ) {}
 
   ngOnInit(): void {
     this.loadUserData();
     this.loadDashboardData();
-    this.notificationService.startRealtime();
-    this.notificationRealtimeSubscription = this.notificationService.realtime$.subscribe((event) => {
-      if (event.eventName === 'notification' && this.isConnectionNotification(event.data?.type)) {
-        this.refreshConnectionStats();
-      }
-    });
-  }
-
-  ngOnDestroy(): void {
-    if (this.notificationRealtimeSubscription) {
-      this.notificationRealtimeSubscription.unsubscribe();
-    }
   }
 
   loadUserData(): void {
@@ -175,11 +174,12 @@ export class Dashboard implements OnInit, OnDestroy {
       documents: this.uploadDocService.getMyDocuments(),
       connections: this.connectionService.getPatientConnections(),
       appointments: this.appointmentService.getPatientAppointments(),
-      profile: this.patientProfileService.getMyProfile()
+      profile: this.patientProfileService.getMyProfile(),
+      billing: this.billingService.getMyInvoices()
     }).subscribe({
       next: (results) => {
         console.log('✅ Dashboard data loaded:', results);
-        
+
         // Process documents
         if (results.documents) {
           this.processDocuments(results.documents);
@@ -203,6 +203,22 @@ export class Dashboard implements OnInit, OnDestroy {
         // Calculate health score
         this.calculateHealthScore(results.profile.patient);
 
+        // Billing
+        if (results.billing && results.billing.success) {
+          const invoices = results.billing.invoices || [];
+          this.invoices = invoices.slice(0, 4);
+          const outstanding = invoices
+            .filter((i: any) => i.status === 'unpaid')
+            .reduce((sum: number, i: any) => sum + (i.totalAmount || 0), 0);
+          const outstandingCount = invoices.filter((i: any) => i.status === 'unpaid').length;
+          // find billing stat (last card)
+          const billingStat = this.stats.find(s => s.title === 'Outstanding Bills');
+          if (billingStat) {
+            billingStat.value = outstandingCount;
+            billingStat.subtitle = `$${outstanding.toFixed(2)} outstanding`;
+          }
+        }
+
         this.loading = false;
       },
       error: (error) => {
@@ -220,20 +236,20 @@ export class Dashboard implements OnInit, OnDestroy {
   processDocuments(documents: DocumentResponse[]): void {
     // Update total documents stat
     this.stats[0].value = documents.length;
-    
+
     // Calculate documents added this month
     const now = new Date();
     const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const docsThisMonth = documents.filter(doc => 
+    const docsThisMonth = documents.filter(doc =>
       new Date(doc.docDate) >= firstDayOfMonth
     ).length;
-    
-    this.stats[0].subtitle = docsThisMonth > 0 
-      ? `+${docsThisMonth} this month` 
+
+    this.stats[0].subtitle = docsThisMonth > 0
+      ? `+${docsThisMonth} this month`
       : 'No new documents this month';
 
     // Get 4 most recent documents
-    const sortedDocs = [...documents].sort((a, b) => 
+    const sortedDocs = [...documents].sort((a, b) =>
       new Date(b.docDate).getTime() - new Date(a.docDate).getTime()
     );
 
@@ -248,37 +264,20 @@ export class Dashboard implements OnInit, OnDestroy {
 
   processConnections(connections: any[]): void {
     // Count accepted connections
-    const acceptedConnections = connections.filter(conn => 
+    const acceptedConnections = connections.filter(conn =>
       conn.status === 'accepted'
     ).length;
-    
+
     this.stats[1].value = acceptedConnections;
-    
+
     // Count active connections (those with recent activity)
-    const activeCount = connections.filter(conn => 
+    const activeCount = connections.filter(conn =>
       conn.status === 'accepted' && conn.lastMessageDate
     ).length;
-    
-    this.stats[1].subtitle = activeCount > 0 
-      ? `${activeCount} active` 
+
+    this.stats[1].subtitle = activeCount > 0
+      ? `${activeCount} active`
       : 'No active connections';
-  }
-
-  private refreshConnectionStats(): void {
-    this.connectionService.getPatientConnections().subscribe({
-      next: (response) => {
-        if (response.success) {
-          this.processConnections(response.connections || []);
-        }
-      },
-      error: (error) => {
-        console.error('❌ Error refreshing patient connections:', error);
-      }
-    });
-  }
-
-  private isConnectionNotification(type?: string): boolean {
-    return type === 'CONNECTION_REQUEST' || type === 'CONNECTION_ACCEPTED' || type === 'CONNECTION_REJECTED';
   }
 
   processAppointments(appointments: AppointmentModel[]): void {
@@ -289,8 +288,8 @@ export class Dashboard implements OnInit, OnDestroy {
     const upcomingAppointments = appointments.filter(apt => {
       const aptDate = new Date(apt.date);
       aptDate.setHours(0, 0, 0, 0);
-      return aptDate >= now && 
-             apt.status !== 'cancelled' && 
+      return aptDate >= now &&
+             apt.status !== 'cancelled' &&
              apt.status !== 'completed' &&
              apt.status !== 'rejected';
     });
@@ -299,7 +298,7 @@ export class Dashboard implements OnInit, OnDestroy {
 
     // Get next appointment date
     if (upcomingAppointments.length > 0) {
-      const sortedApts = upcomingAppointments.sort((a, b) => 
+      const sortedApts = upcomingAppointments.sort((a, b) =>
         new Date(a.date).getTime() - new Date(b.date).getTime()
       );
       const nextApt = sortedApts[0];
@@ -330,8 +329,8 @@ export class Dashboard implements OnInit, OnDestroy {
         .map((a: any) => a.name)
         .slice(0, 2)
         .join(', ');
-      
-      const hasSevereAllergy = patient.allergies.some((a: any) => 
+
+      const hasSevereAllergy = patient.allergies.some((a: any) =>
         a.severity === 'severe'
       );
 
@@ -397,7 +396,7 @@ export class Dashboard implements OnInit, OnDestroy {
 
     const percentage = Math.round((score / maxScore) * 100);
     this.stats[3].value = `${percentage}%`;
-    
+
     if (percentage >= 80) {
       this.stats[3].subtitle = 'Excellent';
       this.stats[3].iconColor = '#28A745';
@@ -415,17 +414,17 @@ export class Dashboard implements OnInit, OnDestroy {
 
   formatDate(dateString: string): string {
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'short', 
-      day: 'numeric' 
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
     });
   }
 
   formatShortDate(date: Date): string {
-    return date.toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric' 
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric'
     });
   }
 
@@ -454,11 +453,17 @@ export class Dashboard implements OnInit, OnDestroy {
     this.router.navigate(['/findDoctors']);
   }
 
+  onStatClick(stat: any): void {
+    if (stat && stat.title === 'Outstanding Bills') {
+      this.router.navigate(['/billing']);
+    }
+  }
+
   logout(): void {
     localStorage.removeItem('currentUser');
     localStorage.removeItem('token');
     this.router.navigate(['/login']);
   }
-  
+
 
 }

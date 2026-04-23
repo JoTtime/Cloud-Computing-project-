@@ -8,6 +8,8 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -64,4 +66,30 @@ public class NotificationController {
         notificationService.deleteNotification(user.userId(), notificationId);
         return ResponseEntity.ok(Map.of("success", true));
     }
+
+    @PostMapping("/appointments")
+    public ResponseEntity<Map<String, Object>> createAppointmentNotification(
+            @RequestBody AppointmentNotificationRequest request
+    ) {
+        notificationService.createAppointmentNotification(
+                request.recipientId(),
+                request.senderId(),
+                request.type(),
+                request.message(),
+                request.appointmentId(),
+                request.appointmentStatus(),
+                request.appointmentDate()
+        );
+        return ResponseEntity.ok(Map.of("success", true));
+    }
+
+    public record AppointmentNotificationRequest(
+            String recipientId,
+            String senderId,
+            String type,
+            String message,
+            String appointmentId,
+            String appointmentStatus,
+            String appointmentDate
+    ) {}
 }

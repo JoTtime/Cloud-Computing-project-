@@ -305,7 +305,7 @@ export class FindDoctors implements OnInit {
     ).subscribe({
       next: (response) => {
         if (response.success && response.availability) {
-          this.availableSlots = response.availability.slots;
+          this.availableSlots = response.availability.slots || [];
           console.log('✅ Available slots loaded:', this.availableSlots.length);
         }
         this.loadingSlots = false;
@@ -319,9 +319,16 @@ export class FindDoctors implements OnInit {
   }
 
   selectTimeSlot(slot: TimeSlot): void {
+    if (!slot.available) {
+      return;
+    }
     this.bookingForm.startTime = slot.start;
     this.bookingForm.endTime = slot.end;
     console.log('🕐 Time slot selected:', slot);
+  }
+
+  getAvailableSlotCount(): number {
+    return this.availableSlots.filter(slot => slot.available).length;
   }
 
   isBookingFormValid(): boolean {

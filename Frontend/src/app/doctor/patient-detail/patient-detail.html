@@ -118,7 +118,7 @@
   <div class="modal-content message-modal" (click)="$event.stopPropagation()">
     <div class="modal-header">
       <div>
-        <h3 class="modal-title">Message John Smith</h3>
+        <h3 class="modal-title">Message {{ patientName }}</h3>
         <p class="modal-subtitle">Patient</p>
       </div>
       <button class="btn-close" (click)="closeMessageModal()">
@@ -130,17 +130,6 @@
     </div>
 
     <div class="modal-body">
-      <div class="message-preview">
-        <div class="preview-message received">
-          <p>Hello Doctor, thank you for the last consultation.</p>
-          <span class="message-time">Yesterday, 3:45 PM</span>
-        </div>
-        <div class="preview-message sent">
-          <p>You're welcome! How are you feeling today?</p>
-          <span class="message-time">Yesterday, 4:02 PM</span>
-        </div>
-      </div>
-
       <!-- Attached File Display -->
       <div class="attached-file" *ngIf="attachedFile">
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="file-icon">
@@ -246,14 +235,8 @@
 
         <!-- Tab Content will go here based on activeTab -->
         <div class="tab-content" *ngIf="activeTab === 'vitals'">
-          <!-- Vitals content from original -->
            <h3>Latest Vital Signs</h3>
-        <div class="vitals-grid">
-          <div class="vital"><div>Blood Pressure</div><strong>128/82 mmHg</strong><span class="normal">Normal</span></div>
-          <div class="vital"><div>Heart Rate</div><strong>72 bpm</strong><span class="normal">Normal</span></div>
-          <div class="vital"><div>Temperature</div><strong>98.6Â°F</strong><span class="normal">Normal</span></div>
-          <div class="vital"><div>Weight</div><strong>185 lbs</strong><span class="normal">Normal</span></div>
-        </div>
+           <p class="subtitle">No vitals data has been provided for this patient yet.</p>
       
         </div>
 
@@ -275,65 +258,14 @@
 </div>
 
         <div class="tab-content" *ngIf="activeTab === 'history'">
-          <!-- History content from original -->
            <h3>Visit History</h3>
-        <div class="history-list">
-          <div class="visit-item">
-            <div class="visit-date">November 10, 2025</div>
-            <div class="visit-type">Follow-up Checkup â€¢ In-Person</div>
-            <div class="visit-notes">Blood pressure stable. Continue current medication.</div>
-          </div>
-          <div class="visit-item">
-            <div class="visit-date">October 15, 2025</div>
-            <div class="visit-type">Annual Physical â€¢ In-Person</div>
-            <div class="visit-notes">All vitals normal. Renewed prescriptions.</div>
-          </div>
-          <div class="visit-item">
-            <div class="visit-date">September 20, 2025</div>
-            <div class="visit-type">Teleconsult</div>
-            <div class="visit-notes">Patient reported mild fatigue. Started Lisinopril.</div>
-          </div>
-        </div>
+           <p class="subtitle">No visit history records are currently available.</p>
         </div>
 
         <div class="tab-content" *ngIf="activeTab === 'documents'">
-          <!-- Documents content from original -->
         <h3>Medical Documents</h3>
         <p class="subtitle">Patient's uploaded medical records</p>
-        <div class="documents-list">
-          <div class="document-item">
-            <div class="doc-icon">File</div>
-            <div class="doc-info">
-              <div class="doc-name">Chest X-Ray</div>
-              <div class="doc-meta">Radiology â€¢ 2025-10-15</div>
-            </div>
-            <button class="download-btn">View</button>
-          </div>
-          <div class="document-item">
-            <div class="doc-icon">File</div>
-            <div class="doc-info">
-              <div class="doc-name">Blood Test Results</div>
-              <div class="doc-meta">Laboratory â€¢ 2025-10-15</div>
-            </div>
-            <button class="download-btn">View</button>
-          </div>
-          <div class="document-item">
-            <div class="doc-icon">File</div>
-            <div class="doc-info">
-              <div class="doc-name">ECG Report</div>
-              <div class="doc-meta">Cardiology â€¢ 2025-09-20</div>
-            </div>
-            <button class="download-btn">View</button>
-          </div>
-          <div class="document-item">
-            <div class="doc-icon">File</div>
-            <div class="doc-info">
-              <div class="doc-name">Prescription - Lisinopril</div>
-              <div class="doc-meta">Medication â€¢ 2025-09-20</div>
-            </div>
-            <button class="download-btn">View</button>
-          </div>
-        </div>
+        <p class="subtitle">No documents are currently available in this view.</p>
 
         </div>
 

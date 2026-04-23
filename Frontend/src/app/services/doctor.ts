@@ -13,6 +13,7 @@ export interface Doctor {
   address?: string;
   specialty?: string;
   hospital?: string;
+  consultationFee?: number;
   rating: number;
   reviewCount: number;
   availableToday: boolean;

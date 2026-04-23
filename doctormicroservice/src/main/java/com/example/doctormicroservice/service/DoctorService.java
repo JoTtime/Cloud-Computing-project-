@@ -4,6 +4,8 @@ import com.example.doctormicroservice.dto.DoctorDto;
 import com.example.doctormicroservice.dto.DoctorProfileUpdateRequest;
 import com.example.doctormicroservice.model.DoctorEntity;
 import com.example.doctormicroservice.repository.DoctorRepository;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.example.doctormicroservice.security.AuthenticatedUser;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -11,15 +13,18 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 @Service
 public class DoctorService {
 
     private final DoctorRepository doctorRepository;
+    private final ObjectMapper objectMapper;
 
-    public DoctorService(DoctorRepository doctorRepository) {
+    public DoctorService(DoctorRepository doctorRepository, ObjectMapper objectMapper) {
         this.doctorRepository = doctorRepository;
+        this.objectMapper = objectMapper;
     }
 
     public List<DoctorDto> getDoctors(String specialty, String search) {
@@ -58,7 +63,10 @@ public class DoctorService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only doctors can update doctor profile");
         }
         DoctorEntity doctor = doctorRepository.findById(user.userId())
-                .orElseGet(() -> createShellDoctor(user.userId()));
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Doctor profile not found for authenticated user"
+                ));
 
         if (request.getFirstName() != null) doctor.setFirstName(request.getFirstName());
         if (request.getLastName() != null) doctor.setLastName(request.getLastName());
@@ -69,6 +77,22 @@ public class DoctorService {
         if (request.getYearsOfExperience() != null) doctor.setYearsOfExperience(request.getYearsOfExperience());
         if (request.getConsultationFee() != null) doctor.setConsultationFee(request.getConsultationFee());
         if (request.getBio() != null) doctor.setBio(request.getBio());
+        if (request.getAvailability() != null) {
+            DoctorProfileUpdateRequest.Availability availability = request.getAvailability();
+            if (availability.getSchedule() != null) {
+                try {
+                    doctor.setAvailabilityScheduleJson(objectMapper.writeValueAsString(availability.getSchedule()));
+                } catch (Exception ex) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid availability schedule format");
+                }
+            }
+            if (availability.getSlotDuration() != null) {
+                doctor.setAvailabilitySlotDuration(availability.getSlotDuration());
+            }
+            if (availability.getLocation() != null) {
+                doctor.setAvailabilityLocation(availability.getLocation());
+            }
+        }
 
         doctorRepository.save(doctor);
     }
@@ -78,7 +102,10 @@ public class DoctorService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only doctors can complete onboarding");
         }
         DoctorEntity doctor = doctorRepository.findById(user.userId())
-                .orElseGet(() -> createShellDoctor(user.userId()));
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Doctor profile not found for authenticated user"
+                ));
         doctor.setIsVerified(true);
         DoctorEntity saved = doctorRepository.save(doctor);
         return Map.of(
@@ -94,14 +121,27 @@ public class DoctorService {
         );
     }
 
-    private DoctorEntity createShellDoctor(String doctorId) {
-        DoctorEntity doctor = new DoctorEntity();
-        doctor.setId(doctorId);
-        doctor.setFirstName("Doctor");
-        doctor.setLastName("User");
-        doctor.setEmail("doctor+" + doctorId + "@medconnect.local");
-        doctor.setSpecialty("General Practice");
-        doctor.setHospital("MedConnect Hospital");
-        return doctor;
+    public Map<String, Object> getAvailabilityConfig(String doctorId) {
+        DoctorEntity doctor = doctorRepository.findById(doctorId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Doctor not found"));
+
+        Map<String, Object> schedule = new LinkedHashMap<>();
+        if (doctor.getAvailabilityScheduleJson() != null && !doctor.getAvailabilityScheduleJson().isBlank()) {
+            try {
+                schedule = objectMapper.readValue(
+                        doctor.getAvailabilityScheduleJson(),
+                        new TypeReference<LinkedHashMap<String, Object>>() {}
+                );
+            } catch (Exception ignored) {
+                schedule = new LinkedHashMap<>();
+            }
+        }
+
+        return Map.of(
+                "schedule", schedule,
+                "slotDuration", doctor.getAvailabilitySlotDuration() == null ? 30 : doctor.getAvailabilitySlotDuration(),
+                "location", doctor.getAvailabilityLocation() == null ? "" : doctor.getAvailabilityLocation()
+        );
     }
+
 }

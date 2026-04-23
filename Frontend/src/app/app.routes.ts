@@ -64,6 +64,11 @@ export const routes: Routes = [
     loadComponent: () => import('./doctor/messages/messages')
       .then(m => m.Messages)
   },
+  {
+    path: 'billing',
+    loadComponent: () => import('./billing/billing')
+      .then(m => m.Billing)
+  },
 
   // ==========================================
   // DOCTOR ROUTES

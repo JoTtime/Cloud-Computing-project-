@@ -112,7 +112,7 @@ export class PatientDetail implements OnInit {
   }
 
   get patientName(): string {
-    return this.patient ? `${this.patient.firstName} ${this.patient.lastName}` : 'Loading...';
+    return this.patient ? `${this.patient.firstName} ${this.patient.lastName}` : 'Patient information unavailable';
   }
 
   get patientAge(): number {
@@ -136,7 +136,7 @@ export class PatientDetail implements OnInit {
   }
 
   formatDate(dateString: string | undefined): string {
-    if (!dateString) return 'N/A';
+    if (!dateString) return 'Not provided';
     try {
       return new Date(dateString).toLocaleDateString('en-US', {
         year: 'numeric',
@@ -145,7 +145,7 @@ export class PatientDetail implements OnInit {
       });
     } catch (error) {
       console.error('❌ Error formatting date:', error);
-      return 'N/A';
+      return 'Not provided';
     }
   }
 

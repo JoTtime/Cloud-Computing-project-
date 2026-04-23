@@ -46,6 +46,16 @@ public class DoctorController {
         return ResponseEntity.ok(DoctorResponse.successWithDoctor(doctorService.getDoctorById(id)));
     }
 
+    @GetMapping("/{id}/availability-config")
+    public ResponseEntity<java.util.Map<String, Object>> getAvailabilityConfig(
+            @PathVariable String id
+    ) {
+        return ResponseEntity.ok(java.util.Map.of(
+                "success", true,
+                "availability", doctorService.getAvailabilityConfig(id)
+        ));
+    }
+
     @PatchMapping("/profile")
     public ResponseEntity<DoctorResponse> updateProfile(
             @RequestBody DoctorProfileUpdateRequest request,

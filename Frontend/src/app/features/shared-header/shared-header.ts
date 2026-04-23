@@ -6,6 +6,8 @@ import { NotificationService, Notification } from '../../services/notification';
 import { ConnectionService } from '../../services/connection';
 import { Subscription } from 'rxjs';
 import { AppointmentService } from '../../services/appointment.service';
+import { BillingService } from '../../services/billing.service';
+import { DoctorService } from '../../services/doctor';
 
 @Component({
   selector: 'app-shared-header',
@@ -36,7 +38,9 @@ export class SharedHeader implements OnInit, OnDestroy {
     private router: Router,
     private notificationService: NotificationService,
     private connection: ConnectionService,
-    private appointmentService: AppointmentService
+    private appointmentService: AppointmentService,
+    private billingService: BillingService,
+    private doctorService: DoctorService
   ) {}
 
   ngOnInit(): void {
@@ -197,6 +201,9 @@ export class SharedHeader implements OnInit, OnDestroy {
     this.appointmentService.respondToAppointment(appointmentId, action, rejectionReason).subscribe({
       next: (response) => {
         if (response.success) {
+          if (action === 'accept') {
+            this.createInvoiceForAcceptedAppointment(appointmentId);
+          }
           alert(`Appointment ${action}ed successfully!`);
           this.markNotificationAsRead(notification);
           this.loadNotifications();
@@ -206,6 +213,63 @@ export class SharedHeader implements OnInit, OnDestroy {
       error: (error) => {
         console.error(`Error ${action}ing appointment:`, error);
         alert(`Failed to ${action} appointment.`);
+      }
+    });
+  }
+
+  private createInvoiceForAcceptedAppointment(appointmentId: string): void {
+    const currentUserRaw = localStorage.getItem('currentUser');
+    const currentUser = currentUserRaw ? JSON.parse(currentUserRaw) : null;
+    const doctorId = currentUser?.userId || currentUser?._id || currentUser?.id;
+    const doctorName = `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim();
+
+    if (!doctorId || !doctorName) {
+      return;
+    }
+
+    this.appointmentService.getDoctorAppointments().subscribe({
+      next: (appointmentResponse) => {
+        const matchedAppointment = (appointmentResponse.appointments || []).find(a => a._id === appointmentId);
+        if (!matchedAppointment || !matchedAppointment.patient) {
+          return;
+        }
+
+        const patient = matchedAppointment.patient as any;
+        const patientId = typeof patient === 'string' ? patient : patient._id || patient.id || patient.userId;
+        const patientName = typeof patient === 'string'
+          ? ''
+          : `${patient.firstName || ''} ${patient.lastName || ''}`.trim();
+
+        if (!patientId || !patientName) {
+          return;
+        }
+
+        this.doctorService.getDoctorById(doctorId).subscribe({
+          next: (doctorResponse) => {
+            const consultationFee = doctorResponse.doctor?.consultationFee;
+            if (consultationFee === undefined || consultationFee === null || consultationFee <= 0) {
+              return;
+            }
+
+            const dateLabel = matchedAppointment.date
+              ? new Date(matchedAppointment.date).toLocaleDateString()
+              : '';
+
+            this.billingService.createInvoice({
+              patientId,
+              patientName,
+              doctorName: `Dr. ${doctorName}`,
+              appointmentId: matchedAppointment._id,
+              description: `Consultation fee for ${dateLabel} ${matchedAppointment.startTime}`.trim(),
+              amount: consultationFee,
+              tax: 0
+            }).subscribe({
+              error: () => {
+                // Keep appointment acceptance successful even if invoice creation fails.
+              }
+            });
+          }
+        });
       }
     });
   }

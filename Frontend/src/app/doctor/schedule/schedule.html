@@ -16,7 +16,7 @@
       <div class="main-column">
         <!-- Date Navigation -->
         <div class="date-nav-card">
-          <button class="nav-btn" (click)="previousDay()">
+          <button class="nav-btn" (click)="previousDay()" title="Previous day" aria-label="Previous day">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <polyline points="15 18 9 12 15 6"/>
             </svg>
@@ -25,7 +25,7 @@
             <strong>{{ getFormattedCurrentDate() }}</strong>
             <span>{{ getAppointmentCountText() }}</span>
           </div>
-          <button class="nav-btn" (click)="nextDay()">
+          <button class="nav-btn" (click)="nextDay()" title="Next day" aria-label="Next day">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <polyline points="9 18 15 12 9 6"/>
             </svg>
@@ -40,6 +40,33 @@
 
         <!-- Appointments List -->
         <div class="appointments-list" *ngIf="!isLoading">
+          <!-- Pending Requests -->
+          <div class="pending-requests-card" *ngIf="pendingRequests.length > 0">
+            <h3 class="pending-title">Pending Requests</h3>
+            <div class="pending-request-row" *ngFor="let req of pendingRequests">
+              <div class="pending-request-info">
+                <strong>{{ req.patient }}</strong>
+                <span>{{ req.time }} • {{ req.mode }} • {{ req.type }}</span>
+              </div>
+              <div class="pending-request-actions">
+                <button
+                  class="btn-action accept-btn"
+                  [disabled]="actionLoadingId === req.appointmentId"
+                  (click)="handleAppointmentRequest(req, 'accept')"
+                >
+                  Accept
+                </button>
+                <button
+                  class="btn-action reject-btn"
+                  [disabled]="actionLoadingId === req.appointmentId"
+                  (click)="handleAppointmentRequest(req, 'reject')"
+                >
+                  Decline
+                </button>
+              </div>
+            </div>
+          </div>
+
           <!-- Show appointments if available -->
           <div class="appt-card" *ngFor="let appt of appointments">
             <div class="appt-time-section">
@@ -106,6 +133,12 @@
                 </svg>
                 Join Call
               </button>
+              <button class="btn-action invoice-btn" *ngIf="appt.status === 'Confirmed'" (click)="openInvoiceModal(appt)">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 9h10M7 12h8M7 15h5"/>
+                </svg>
+                Create Invoice
+              </button>
             </div>
           </div>
 
@@ -117,8 +150,8 @@
               <line x1="8" x2="8" y1="2" y2="6"/>
               <line x1="3" x2="21" y1="10" y2="10"/>
             </svg>
-            <h3>No appointments scheduled</h3>
-            <p>You have no appointments for this day</p>
+            <h3>No confirmed appointments scheduled</h3>
+            <p>You have no confirmed appointments for this day</p>
           </div>
         </div>
       </div>
@@ -175,4 +208,37 @@
       </aside>
     </div>
   </main>
+</div>
+
+<!-- Create Invoice Modal -->
+<div class="modal-overlay" *ngIf="showInvoiceModal" (click)="closeInvoiceModal()">
+  <div class="modal-card" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3 class="modal-title">Create Invoice</h3>
+      <button class="btn-close" (click)="closeInvoiceModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <p class="modal-patient">Patient: <strong>{{ selectedAppointment?.patient }}</strong></p>
+      <p class="modal-patient">Appointment: {{ selectedAppointment?.time }} — {{ selectedAppointment?.mode }}</p>
+
+      <div class="form-group">
+        <label class="form-label">Description *</label>
+        <input type="text" class="form-input" [(ngModel)]="invoiceForm.description" placeholder="e.g. Consultation fee">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Amount (USD) *</label>
+        <input type="number" class="form-input" [(ngModel)]="invoiceForm.amount" min="1">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notes (optional)</label>
+        <textarea class="form-input" [(ngModel)]="invoiceForm.notes" rows="2" placeholder="Any additional notes..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" (click)="closeInvoiceModal()">Cancel</button>
+      <button class="btn-primary" (click)="submitInvoice()" [disabled]="creatingInvoice || !invoiceForm.description || invoiceForm.amount < 1">
+        {{ creatingInvoice ? 'Creating...' : 'Create Invoice' }}
+      </button>
+    </div>
+  </div>
 </div>

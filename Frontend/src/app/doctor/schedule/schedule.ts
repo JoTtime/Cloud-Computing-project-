@@ -1,8 +1,10 @@
 import { CommonModule } from '@angular/common';
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { SharedHeader } from '../../features/shared-header/shared-header';
 import { RouterLink } from "@angular/router";
+import { FormsModule } from '@angular/forms';
 import { AppointmentService, Appointment } from '../../services/appointment.service';
+import { BillingService } from '../../services/billing.service';
 
 interface AppointmentDisplay {
   time: string;
@@ -27,26 +29,42 @@ interface WeeklyStat {
 @Component({
   selector: 'app-schedule',
   standalone: true,
-  imports: [CommonModule, SharedHeader, RouterLink],
+  imports: [CommonModule, SharedHeader, RouterLink, FormsModule],
   templateUrl: './schedule.html',
   styleUrl: './schedule.css',
 })
-export class Schedule {
+export class Schedule implements OnInit {
 
   doctorName: string = '';
+  doctorId: string = '';
   currentDate: Date = new Date();
   selectedDate: Date = new Date();
   appointments: AppointmentDisplay[] = [];
+  pendingRequests: AppointmentDisplay[] = [];
   weeklyStats: WeeklyStat[] = [];
   
   // Stats
   todayTotal: number = 0;
   inPersonCount: number = 0;
   teleconsultCount: number = 0;
+  actionLoadingId: string | null = null;
   
   isLoading: boolean = false;
 
-  constructor(private appointmentService: AppointmentService) {}
+  // Invoice modal
+  showInvoiceModal = false;
+  selectedAppointment: AppointmentDisplay | null = null;
+  invoiceForm = {
+    amount: 50,
+    description: '',
+    notes: ''
+  };
+  creatingInvoice = false;
+
+  constructor(
+    private appointmentService: AppointmentService,
+    private billingService: BillingService
+  ) {}
 
   ngOnInit(): void {
     this.loadUserInfo();
@@ -59,7 +77,7 @@ export class Schedule {
     if (storedUser) {
       const user = JSON.parse(storedUser);
       this.doctorName = `Dr. ${user.firstName} ${user.lastName}`;
-      console.log('👨‍⚕️ Doctor loaded:', this.doctorName);
+      this.doctorId = user.userId || user.id || user._id || '';
     }
   }
 
@@ -78,7 +96,9 @@ export class Schedule {
           console.log('✅ Appointments received:', response.appointments.length);
           console.log('📋 First appointment sample:', response.appointments[0]);
           
-          this.appointments = this.transformAppointments(response.appointments);
+          const transformed = this.transformAppointments(response.appointments);
+          this.pendingRequests = transformed.filter(apt => apt.status === 'Pending');
+          this.appointments = transformed.filter(apt => apt.status === 'Confirmed');
           
           console.log('✅ Transformed appointments:', this.appointments.length);
           console.log('📊 Appointments list:', this.appointments);
@@ -185,9 +205,10 @@ export class Schedule {
   }
 
   calculateStats(): void {
-    this.todayTotal = this.appointments.length;
-    this.inPersonCount = this.appointments.filter(apt => apt.mode === 'In-Person').length;
-    this.teleconsultCount = this.appointments.filter(apt => apt.mode === 'Teleconsult').length;
+    const allToday = [...this.appointments, ...this.pendingRequests];
+    this.todayTotal = allToday.length;
+    this.inPersonCount = allToday.filter(apt => apt.mode === 'In-Person').length;
+    this.teleconsultCount = allToday.filter(apt => apt.mode === 'Teleconsult').length;
     
     console.log('📊 Stats calculated:', {
       total: this.todayTotal,
@@ -291,8 +312,108 @@ export class Schedule {
   }
 
   getAppointmentCountText(): string {
-    const count = this.appointments.length;
+    const count = this.appointments.length + this.pendingRequests.length;
     return `${count} appointment${count !== 1 ? 's' : ''} scheduled`;
+  }
+
+  handleAppointmentRequest(appt: AppointmentDisplay, action: 'accept' | 'reject'): void {
+    let rejectionReason = '';
+    if (action === 'reject') {
+      rejectionReason = prompt('Please provide a reason for declining (optional):') || '';
+    }
+
+    this.actionLoadingId = appt.appointmentId;
+    this.appointmentService.respondToAppointment(appt.appointmentId, action, rejectionReason).subscribe({
+      next: (response) => {
+        if (response.success) {
+          if (action === 'accept') {
+            this.createInvoiceAfterAcceptance(appt);
+          } else {
+            alert(`Appointment ${action}ed successfully.`);
+            this.loadAppointmentsForDate(this.selectedDate);
+            this.loadWeeklyCounts();
+          }
+        }
+        this.actionLoadingId = null;
+      },
+      error: (error) => {
+        console.error(`❌ Failed to ${action} appointment:`, error);
+        alert(`Failed to ${action} appointment. Please try again.`);
+        this.actionLoadingId = null;
+      }
+    });
+  }
+
+  private createInvoiceAfterAcceptance(appt: AppointmentDisplay): void {
+    this.billingService.createInvoice({
+      patientId: appt.patientId,
+      patientName: appt.patient,
+      doctorName: this.doctorName,
+      appointmentId: appt.appointmentId,
+      consultationType: appt.mode === 'In-Person' ? 'in-person' : 'video',
+      description: `Consultation - ${appt.reason}`,
+      amount: 50,
+      notes: 'Auto-generated after appointment confirmation'
+    }).subscribe({
+      next: (res) => {
+        if (res.success) {
+          alert('Appointment accepted and invoice generated successfully.');
+        } else {
+          alert('Appointment accepted, but invoice was not generated.');
+        }
+        this.loadAppointmentsForDate(this.selectedDate);
+        this.loadWeeklyCounts();
+      },
+      error: (error) => {
+        console.error('❌ Invoice creation failed after acceptance:', error);
+        alert('Appointment accepted, but billing invoice creation failed.');
+        this.loadAppointmentsForDate(this.selectedDate);
+        this.loadWeeklyCounts();
+      }
+    });
+  }
+
+  openInvoiceModal(appt: AppointmentDisplay): void {
+    this.selectedAppointment = appt;
+    this.invoiceForm = {
+      amount: 50,
+      description: `Consultation - ${appt.reason}`,
+      notes: ''
+    };
+    this.showInvoiceModal = true;
+  }
+
+  closeInvoiceModal(): void {
+    this.showInvoiceModal = false;
+    this.selectedAppointment = null;
+    this.creatingInvoice = false;
+  }
+
+  submitInvoice(): void {
+    if (!this.selectedAppointment || this.creatingInvoice) return;
+    this.creatingInvoice = true;
+
+    this.billingService.createInvoice({
+      patientId: this.selectedAppointment.patientId,
+      patientName: this.selectedAppointment.patient,
+      doctorName: this.doctorName,
+      appointmentId: this.selectedAppointment.appointmentId,
+      description: this.invoiceForm.description,
+      amount: this.invoiceForm.amount,
+      notes: this.invoiceForm.notes
+    }).subscribe({
+      next: (res) => {
+        if (res.success) {
+          alert('Invoice created successfully. The patient will be notified.');
+          this.closeInvoiceModal();
+        }
+        this.creatingInvoice = false;
+      },
+      error: (err) => {
+        alert(err.error?.message || 'Failed to create invoice.');
+        this.creatingInvoice = false;
+      }
+    });
   }
 
 }

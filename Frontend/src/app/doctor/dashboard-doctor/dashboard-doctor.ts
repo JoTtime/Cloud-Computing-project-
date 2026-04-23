@@ -5,7 +5,9 @@ import { RouterModule } from '@angular/router';
 import { SharedHeader } from '../../features/shared-header/shared-header';
 import { OnboardingComponent } from '../../features/onboarding/onboarding'; 
 import { OnboardingService } from '../../services/onboarding';
-import { forkJoin } from 'rxjs';
+import { forkJoin, of } from 'rxjs';
+import { BillingService } from '../../services/billing.service';
+import { catchError } from 'rxjs/operators';
 import { ConnectionService } from '../../services/connection';
 import { AppointmentService, Appointment } from '../../services/appointment.service';
 import { MessageService } from '../../services/message';
@@ -63,6 +65,24 @@ export class DashboardDoctor implements OnInit {
       color: '#4A90E2', 
       iconType: 'consults'
     }
+    ,
+    // Billing stats
+    {
+      label: 'Total Earned',
+      value: 0,
+      subtitle: '$0.00',
+      icon: '💰',
+      color: '#3b5bdb',
+      iconType: 'billing'
+    },
+    {
+      label: 'Pending Invoices',
+      value: 0,
+      subtitle: 'Loading...',
+      icon: '🧾',
+      color: '#f59e0b',
+      iconType: 'billing'
+    }
   ];
 
   constructor(
@@ -71,6 +91,7 @@ export class DashboardDoctor implements OnInit {
     private connectionService: ConnectionService,
     private appointmentService: AppointmentService,
     private messageService: MessageService
+    , private billingService: BillingService
   ) {
     console.log('🟢 DashboardDoctor: Constructor called');
   }
@@ -84,6 +105,13 @@ export class DashboardDoctor implements OnInit {
     setTimeout(() => {
       this.checkOnboardingStatus();
     }, 100);
+  }
+
+  onStatClick(stat: any): void {
+    if (!stat) return;
+    if (stat.label === 'Total Earned' || stat.label === 'Pending Invoices') {
+      this.router.navigate(['/billing']);
+    }
   }
 
   private loadDoctorInfo(): void {
@@ -111,10 +139,19 @@ export class DashboardDoctor implements OnInit {
 
     // Load all data in parallel
     forkJoin({
-      connections: this.connectionService.getDoctorConnections(),
-      todayAppointments: this.appointmentService.getDoctorAppointments(undefined, dateString),
-      allAppointments: this.appointmentService.getDoctorAppointments(),
-      conversations: this.messageService.getConversations()
+      connections: this.connectionService.getDoctorConnections().pipe(
+        catchError(() => of({ success: false, connections: [] }))
+      ),
+      todayAppointments: this.appointmentService.getDoctorAppointments(undefined, dateString).pipe(
+        catchError(() => of({ success: false, appointments: [] }))
+      ),
+      allAppointments: this.appointmentService.getDoctorAppointments().pipe(
+        catchError(() => of({ success: false, appointments: [] }))
+      ),
+      conversations: this.messageService.getConversations().pipe(
+        catchError(() => of({ success: false, conversations: [] }))
+      )
+      , billing: this.billingService.getStats().pipe(catchError(() => of({ success: false })))
     }).subscribe({
       next: (results) => {
         console.log('✅ Dashboard data loaded:', results);
@@ -140,6 +177,23 @@ export class DashboardDoctor implements OnInit {
         }
 
         this.loading = false;
+
+        // Billing stats
+        const billingRes: any = results.billing;
+        if (billingRes && billingRes.success && billingRes.stats) {
+          const totalEarned = billingRes.stats.totalEarned || 0;
+          const pending = billingRes.stats.pendingInvoices || 0;
+          const totalEarnedCard = this.stats.find(s => s.label === 'Total Earned');
+          const pendingCard = this.stats.find(s => s.label === 'Pending Invoices');
+          if (totalEarnedCard) {
+            totalEarnedCard.value = Math.round(totalEarned);
+            totalEarnedCard.subtitle = `$${totalEarned.toFixed(2)}`;
+          }
+          if (pendingCard) {
+            pendingCard.value = pending;
+            pendingCard.subtitle = `${pending} unpaid`;
+          }
+        }
       },
       error: (error) => {
         console.error('❌ Error loading dashboard data:', error);

@@ -35,6 +35,7 @@ interface Appointmentattributes {
 export class Appointment implements OnInit{
  userName: string = '';
   activeTab: 'upcoming' | 'past' = 'upcoming';
+  private readonly billingRedirectStorageKey = 'billingRedirectedConfirmedAppointments';
   
   appointments: Appointmentattributes[] = [];
   filteredAppointments: Appointmentattributes[] = [];
@@ -104,14 +105,14 @@ export class Appointment implements OnInit{
               : apt.doctor._id || apt.doctor.id;
             
             const doctorFirstName = typeof apt.doctor === 'string' 
-              ? 'Doctor' 
-              : apt.doctor.firstName || 'Doctor';
+              ? '' 
+              : apt.doctor.firstName || '';
             const doctorLastName = typeof apt.doctor === 'string'
               ? ''
               : apt.doctor.lastName || '';
             const specialty = typeof apt.doctor === 'string'
-              ? 'General Practice'
-              : apt.doctor.specialty || 'General Practice';
+              ? 'Not provided'
+              : apt.doctor.specialty || 'Not provided';
 
             const connectionId = connectionMap.get(doctorId);
             
@@ -120,11 +121,11 @@ export class Appointment implements OnInit{
             return {
               id: apt._id,
               doctorId: doctorId,
-              doctorName: `Dr. ${doctorFirstName} ${doctorLastName}`.trim(),
+              doctorName: `${doctorFirstName} ${doctorLastName}`.trim() || 'Doctor information unavailable',
               specialty: specialty,
               date: this.formatDate(apt.date),
               time: apt.startTime,
-              location: apt.location || 'Video Call',
+              location: apt.location || (apt.type === 'video' ? 'Video consultation' : 'Location not provided'),
               status: apt.status,
               type: apt.type,
               imageUrl: '',
@@ -135,6 +136,7 @@ export class Appointment implements OnInit{
           });
 
           console.log('✅ Final appointments with connections:', this.appointments);
+          this.redirectToBillingForNewlyConfirmedAppointments();
         }
 
         this.filterAppointments();
@@ -146,6 +148,35 @@ export class Appointment implements OnInit{
         this.filterAppointments();
       }
     });
+  }
+
+  private redirectToBillingForNewlyConfirmedAppointments(): void {
+    const redirectedIds = this.getRedirectedAppointmentIds();
+    const newlyConfirmedIds = this.appointments
+      .filter(apt => apt.status === 'confirmed' && !redirectedIds.includes(apt.id))
+      .map(apt => apt.id);
+
+    if (newlyConfirmedIds.length === 0) {
+      return;
+    }
+
+    const updatedRedirectedIds = [...redirectedIds, ...newlyConfirmedIds];
+    localStorage.setItem(this.billingRedirectStorageKey, JSON.stringify(updatedRedirectedIds));
+    this.router.navigate(['/billing']);
+  }
+
+  private getRedirectedAppointmentIds(): string[] {
+    const storedIds = localStorage.getItem(this.billingRedirectStorageKey);
+    if (!storedIds) {
+      return [];
+    }
+
+    try {
+      const parsed = JSON.parse(storedIds);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
   }
 
   formatDate(dateString: string): string {

@@ -1,5 +1,7 @@
 package com.example.doctormicroservice.dto;
 
+import java.util.Map;
+
 public class DoctorProfileUpdateRequest {
     private String firstName;
     private String lastName;
@@ -10,6 +12,25 @@ public class DoctorProfileUpdateRequest {
     private Integer yearsOfExperience;
     private Double consultationFee;
     private String bio;
+    private Availability availability;
+
+    public static class Availability {
+        private Map<String, Object> schedule;
+        private Integer slotDuration;
+        private String location;
+
+        public Map<String, Object> getSchedule() {
+            return schedule;
+        }
+
+        public Integer getSlotDuration() {
+            return slotDuration;
+        }
+
+        public String getLocation() {
+            return location;
+        }
+    }
 
     public String getFirstName() {
         return firstName;
@@ -45,5 +66,9 @@ public class DoctorProfileUpdateRequest {
 
     public String getBio() {
         return bio;
+    }
+
+    public Availability getAvailability() {
+        return availability;
     }
 }

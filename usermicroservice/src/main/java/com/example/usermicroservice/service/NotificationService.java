@@ -46,6 +46,33 @@ public class NotificationService {
         ));
     }
 
+    public void createAppointmentNotification(
+            String recipientId,
+            String senderId,
+            String type,
+            String message,
+            String appointmentId,
+            String appointmentStatus,
+            String appointmentDate
+    ) {
+        NotificationEntity n = new NotificationEntity();
+        n.setRecipientId(recipientId);
+        n.setSenderId(senderId);
+        n.setType(type);
+        n.setMessage(message);
+        n.setRead(false);
+        n.setRelatedAppointmentId(appointmentId);
+        n.setRelatedAppointmentStatus(appointmentStatus);
+        n.setRelatedAppointmentDate(appointmentDate);
+        NotificationEntity saved = notificationRepository.save(n);
+        pushEvent(recipientId, "notification", Map.of(
+                "type", saved.getType(),
+                "notificationId", saved.getId(),
+                "message", saved.getMessage(),
+                "createdAt", LocalDateTime.now().toString()
+        ));
+    }
+
     public List<Map<String, Object>> getNotifications(String recipientId) {
         return notificationRepository.findByRecipientIdOrderByCreatedAtDesc(recipientId).stream()
                 .map(n -> {

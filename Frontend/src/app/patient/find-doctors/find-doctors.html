@@ -104,6 +104,13 @@
                 </svg>
                 <span class="info-text available">Available Today</span>
               </div>
+              <div class="info-item" *ngIf="doctor.consultationFee !== undefined && doctor.consultationFee !== null">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="12" y1="1" x2="12" y2="23"/>
+                  <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                </svg>
+                <span class="info-text">${{ doctor.consultationFee | number:'1.2-2' }} consultation</span>
+              </div>
             </div>
           </div>
 
@@ -227,15 +234,17 @@
               *ngFor="let slot of availableSlots"
               class="time-slot-btn"
               [class.selected]="bookingForm.startTime === slot.start"
+              [class.unavailable]="!slot.available"
+              [disabled]="!slot.available"
               (click)="selectTimeSlot(slot)"
             >
-              {{ slot.start }}
+              {{ slot.start }} <span *ngIf="!slot.available">(Booked)</span>
             </button>
           </div>
         </div>
 
         <!-- No Slots Available -->
-        <div class="no-slots" *ngIf="!loadingSlots && bookingForm.date && availableSlots.length === 0">
+        <div class="no-slots" *ngIf="!loadingSlots && bookingForm.date && (availableSlots.length === 0 || getAvailableSlotCount() === 0)">
           <p>No available time slots for this date. Please select another date.</p>
         </div>
 
