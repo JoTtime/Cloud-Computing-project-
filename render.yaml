@@ -19,7 +19,7 @@ services:
       - key: MEDCONNECT_DATABASE_CREATE_IF_NOT_EXISTS
         value: "false"
       - key: SPRING_DATASOURCE_URL
-        value: "jdbc:postgresql://dpg-d7kkl4qqqhas738dhr7g-a:5432/medconnect_tkpa"
+        value: "jdbc:postgresql://dpg-d7lc3k5ckfvc73a6f7tg-a:5432/medconnect_fisq"
       - key: SPRING_DATASOURCE_USERNAME
         value: "medconnect"
       - key: SPRING_DATASOURCE_PASSWORD
@@ -43,7 +43,7 @@ services:
       - key: MEDCONNECT_DATABASE_CREATE_IF_NOT_EXISTS
         value: "false"
       - key: SPRING_DATASOURCE_URL
-        value: "jdbc:postgresql://dpg-d7kkl4qqqhas738dhr7g-a:5432/medconnect_tkpa"
+        value: "jdbc:postgresql://dpg-d7lc3k5ckfvc73a6f7tg-a:5432/medconnect_fisq"
       - key: SPRING_DATASOURCE_USERNAME
         value: "medconnect"
       - key: SPRING_DATASOURCE_PASSWORD
@@ -67,7 +67,7 @@ services:
       - key: MEDCONNECT_DATABASE_CREATE_IF_NOT_EXISTS
         value: "false"
       - key: SPRING_DATASOURCE_URL
-        value: "jdbc:postgresql://dpg-d7kkl4qqqhas738dhr7g-a:5432/medconnect_tkpa"
+        value: "jdbc:postgresql://dpg-d7lc3k5ckfvc73a6f7tg-a:5432/medconnect_fisq"
       - key: SPRING_DATASOURCE_USERNAME
         value: "medconnect"
       - key: SPRING_DATASOURCE_PASSWORD
@@ -91,7 +91,7 @@ services:
       - key: MEDCONNECT_DATABASE_CREATE_IF_NOT_EXISTS
         value: "false"
       - key: SPRING_DATASOURCE_URL
-        value: "jdbc:postgresql://dpg-d7kkl4qqqhas738dhr7g-a:5432/medconnect_tkpa"
+        value: "jdbc:postgresql://dpg-d7lc3k5ckfvc73a6f7tg-a:5432/medconnect_fisq"
       - key: SPRING_DATASOURCE_USERNAME
         value: "medconnect"
       - key: SPRING_DATASOURCE_PASSWORD
@@ -115,7 +115,7 @@ services:
       - key: MEDCONNECT_DATABASE_CREATE_IF_NOT_EXISTS
         value: "false"
       - key: SPRING_DATASOURCE_URL
-        value: "jdbc:postgresql://dpg-d7kkl4qqqhas738dhr7g-a:5432/medconnect_tkpa"
+        value: "jdbc:postgresql://dpg-d7lc3k5ckfvc73a6f7tg-a:5432/medconnect_fisq"
       - key: SPRING_DATASOURCE_USERNAME
         value: "medconnect"
       - key: SPRING_DATASOURCE_PASSWORD
