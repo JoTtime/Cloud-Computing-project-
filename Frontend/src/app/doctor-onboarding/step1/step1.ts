@@ -21,6 +21,15 @@ export class Step1 {
 
   constructor(private onboardingService: OnboardingService) {}
 
+  ngOnInit(): void {
+    const savedData = this.onboardingService.getOnboardingData();
+    this.specialty = savedData.specialty ?? '';
+    this.phone = savedData.phone ?? '';
+    this.hospital = savedData.hospital ?? '';
+    this.experience = Number(savedData.yearsOfExperience) || 0;
+    this.fee = Number(savedData.consultationFee) || 0;
+  }
+
   close() {
     this.onboardingService.close();
   }

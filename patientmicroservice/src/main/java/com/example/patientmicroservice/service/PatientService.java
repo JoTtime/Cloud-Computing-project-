@@ -46,6 +46,8 @@ public class PatientService {
         if (request.getEmergencyContact() != null) patient.setEmergencyContactJson(toJson(request.getEmergencyContact()));
         if (request.getMedicalHistory() != null) patient.setMedicalHistoryJson(toJson(request.getMedicalHistory()));
         if (request.getCurrentMedications() != null) patient.setCurrentMedicationsJson(toJson(request.getCurrentMedications()));
+        if (request.getVitals() != null) patient.setVitalsJson(toJson(request.getVitals()));
+        if (request.getDoctorNotes() != null) patient.setDoctorNotes(request.getDoctorNotes());
 
         return PatientDto.fromEntity(patientRepository.save(patient));
     }
@@ -57,6 +59,28 @@ public class PatientService {
         PatientEntity patient = patientRepository.findById(patientId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Patient not found"));
         return PatientDto.fromEntity(patient);
+    }
+
+    public PatientDto updatePatientClinicalByDoctor(
+            AuthenticatedUser user,
+            String patientId,
+            PatientProfileUpdateRequest request
+    ) {
+        if (!user.isDoctor()) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only doctors can update patient clinical data");
+        }
+
+        PatientEntity patient = patientRepository.findById(patientId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Patient not found"));
+
+        if (request.getVitals() != null) {
+            patient.setVitalsJson(toJson(request.getVitals()));
+        }
+        if (request.getDoctorNotes() != null) {
+            patient.setDoctorNotes(request.getDoctorNotes());
+        }
+
+        return PatientDto.fromEntity(patientRepository.save(patient));
     }
 
     private PatientEntity getOrCreatePatient(String patientId) {

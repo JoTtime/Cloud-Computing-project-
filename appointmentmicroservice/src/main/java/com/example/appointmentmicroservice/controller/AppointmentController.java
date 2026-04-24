@@ -80,6 +80,20 @@ public class AppointmentController {
         );
     }
 
+    @GetMapping("/{appointmentId}")
+    public ResponseEntity<AppointmentResponse> getAppointmentById(
+            @PathVariable String appointmentId,
+            @RequestHeader("Authorization") String authorization
+    ) {
+        AuthenticatedUser user = jwtService.authenticate(authorization);
+        return ResponseEntity.ok(
+                AppointmentResponse.successWithAppointment(
+                        "Appointment loaded",
+                        appointmentService.getAppointmentById(user, appointmentId)
+                )
+        );
+    }
+
     @PatchMapping("/{appointmentId}/respond")
     public ResponseEntity<AppointmentResponse> respondToAppointment(
             @PathVariable String appointmentId,

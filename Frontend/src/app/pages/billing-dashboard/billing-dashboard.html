@@ -1,0 +1,54 @@
+<div class="billing-page">
+  <app-shared-header [userType]="userType" [userName]="userName"></app-shared-header>
+
+  <main class="billing-main">
+    <section class="page-header">
+      <h1>Billing Dashboard</h1>
+      <p>Track invoices and total payments in FCFA.</p>
+    </section>
+
+    <section class="cards">
+      <article class="card">
+        <h3>Total Amount</h3>
+        <p class="value">{{ totalFcfa }} FCFA</p>
+      </article>
+      <article class="card">
+        <h3>Total Invoices</h3>
+        <p class="value">{{ invoices.length }}</p>
+      </article>
+      <article class="card">
+        <h3>Latest Invoice</h3>
+        <p class="value small">{{ latestInvoiceDate || 'No invoice yet' }}</p>
+      </article>
+    </section>
+
+    <section class="invoice-list">
+      <h2>Invoice History</h2>
+      <p *ngIf="isLoading">Loading billing data...</p>
+
+      <div class="invoice-item" *ngFor="let invoice of invoices">
+        <div>
+          <strong>{{ invoice.invoiceNumber }}</strong>
+          <p>{{ invoice.issuedAt | date:'medium' }}</p>
+          <p>Status: {{ invoice.status | titlecase }}</p>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div class="amount">{{ invoice.amount }} FCFA</div>
+          <button
+            *ngIf="userType === 'patient'"
+            (click)="payInvoice(invoice)"
+            [disabled]="invoice.status === 'paid' || payingInvoiceId === invoice._id"
+          >
+            {{
+              invoice.status === 'paid'
+                ? 'Paid'
+                : (payingInvoiceId === invoice._id ? 'Paying...' : 'Pay Now')
+            }}
+          </button>
+        </div>
+      </div>
+
+      <p *ngIf="!isLoading && invoices.length === 0">No invoices available yet.</p>
+    </section>
+  </main>
+</div>

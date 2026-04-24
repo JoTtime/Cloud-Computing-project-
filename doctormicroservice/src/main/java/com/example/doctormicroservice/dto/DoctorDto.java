@@ -11,10 +11,15 @@ public record DoctorDto(
         String address,
         String specialty,
         String hospital,
+        int yearsOfExperience,
+        double consultationFee,
         double rating,
         int reviewCount,
         boolean availableToday,
-        boolean isVerified
+        boolean isVerified,
+        String availabilityScheduleJson,
+        int slotDuration,
+        String availabilityLocation
 ) {
     public static DoctorDto fromEntity(DoctorEntity doctor) {
         return new DoctorDto(
@@ -26,10 +31,15 @@ public record DoctorDto(
                 doctor.getAddress(),
                 doctor.getSpecialty(),
                 doctor.getHospital(),
+                doctor.getYearsOfExperience() == null ? 0 : doctor.getYearsOfExperience(),
+                doctor.getConsultationFee() == null ? 0.0 : doctor.getConsultationFee(),
                 doctor.getRating() == null ? 0.0 : doctor.getRating(),
                 doctor.getReviewCount() == null ? 0 : doctor.getReviewCount(),
                 doctor.getAvailableToday() != null && doctor.getAvailableToday(),
-                doctor.getIsVerified() != null && doctor.getIsVerified()
+                doctor.getIsVerified() != null && doctor.getIsVerified(),
+                doctor.getAvailabilityScheduleJson(),
+                doctor.getSlotDuration() == null ? 30 : doctor.getSlotDuration(),
+                doctor.getAvailabilityLocation() == null ? "" : doctor.getAvailabilityLocation()
         );
     }
 }

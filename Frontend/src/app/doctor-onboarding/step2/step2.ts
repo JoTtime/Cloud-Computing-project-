@@ -56,11 +56,8 @@ export class Step2 {
   if (savedData.availability) {
     const schedule = savedData.availability.schedule;
 
-    if (typeof schedule === 'string') {
-      this.schedule = JSON.parse(schedule);
-    } else {
-      this.schedule = schedule;
-    }
+    const parsedSchedule = typeof schedule === 'string' ? JSON.parse(schedule) : schedule;
+    this.schedule = this.normalizeSchedule(parsedSchedule);
 
    this.slotDuration = Number(savedData.availability.slotDuration) || 30;
     this.location = savedData.availability.location ?? '';
@@ -168,5 +165,26 @@ export class Step2 {
     if (!day.isOpen) return 'Closed';
     
     return day.slots.map(slot => `${slot.start} - ${slot.end}`).join(', ');
+  }
+
+  private normalizeSchedule(rawSchedule: any): Record<string, DaySchedule> {
+    const normalized: Record<string, DaySchedule> = { ...this.schedule };
+
+    this.days.forEach(day => {
+      const value = rawSchedule?.[day.key];
+      if (Array.isArray(value)) {
+        normalized[day.key] = {
+          isOpen: value.length > 0,
+          slots: value.length > 0 ? value : [{ start: '09:00', end: '17:00' }]
+        };
+      } else if (value && typeof value === 'object') {
+        normalized[day.key] = {
+          isOpen: !!value.isOpen,
+          slots: Array.isArray(value.slots) && value.slots.length > 0 ? value.slots : [{ start: '09:00', end: '17:00' }]
+        };
+      }
+    });
+
+    return normalized;
   }
 }

@@ -8,34 +8,47 @@ public class DoctorResponse {
     private final String message;
     private final DoctorDto doctor;
     private final List<DoctorDto> doctors;
+    private final List<String> specialties;
     private final Map<String, Object> user;
 
-    private DoctorResponse(boolean success, String message, DoctorDto doctor, List<DoctorDto> doctors, Map<String, Object> user) {
+    private DoctorResponse(
+            boolean success,
+            String message,
+            DoctorDto doctor,
+            List<DoctorDto> doctors,
+            List<String> specialties,
+            Map<String, Object> user
+    ) {
         this.success = success;
         this.message = message;
         this.doctor = doctor;
         this.doctors = doctors;
+        this.specialties = specialties;
         this.user = user;
     }
 
     public static DoctorResponse successWithDoctors(List<DoctorDto> doctors) {
-        return new DoctorResponse(true, null, null, doctors, null);
+        return new DoctorResponse(true, null, null, doctors, null, null);
     }
 
     public static DoctorResponse successWithDoctor(DoctorDto doctor) {
-        return new DoctorResponse(true, null, doctor, null, null);
+        return new DoctorResponse(true, null, doctor, null, null, null);
+    }
+
+    public static DoctorResponse successWithSpecialties(List<String> specialties) {
+        return new DoctorResponse(true, null, null, null, specialties, null);
     }
 
     public static DoctorResponse successWithMessage(String message) {
-        return new DoctorResponse(true, message, null, null, null);
+        return new DoctorResponse(true, message, null, null, null, null);
     }
 
     public static DoctorResponse successWithUser(String message, Map<String, Object> user) {
-        return new DoctorResponse(true, message, null, null, user);
+        return new DoctorResponse(true, message, null, null, null, user);
     }
 
     public static DoctorResponse fail(String message) {
-        return new DoctorResponse(false, message, null, null, null);
+        return new DoctorResponse(false, message, null, null, null, null);
     }
 
     public boolean isSuccess() {
@@ -52,6 +65,10 @@ public class DoctorResponse {
 
     public List<DoctorDto> getDoctors() {
         return doctors;
+    }
+
+    public List<String> getSpecialties() {
+        return specialties;
     }
 
     public Map<String, Object> getUser() {

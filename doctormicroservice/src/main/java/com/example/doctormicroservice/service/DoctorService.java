@@ -12,9 +12,19 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 
 @Service
 public class DoctorService {
+    private static final List<String> DEFAULT_SPECIALTIES = List.of(
+            "Cardiology",
+            "General Practice",
+            "Pediatrics",
+            "Orthopedic Surgery",
+            "Dermatology",
+            "Neurology"
+    );
 
     private final DoctorRepository doctorRepository;
 
@@ -53,6 +63,26 @@ public class DoctorService {
         return DoctorDto.fromEntity(doctor);
     }
 
+    public List<String> getSpecialties() {
+        Set<String> specialties = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+        specialties.addAll(DEFAULT_SPECIALTIES);
+        doctorRepository.findAll().stream()
+                .map(DoctorEntity::getSpecialty)
+                .filter(value -> value != null && !value.isBlank())
+                .map(String::trim)
+                .forEach(specialties::add);
+        return List.copyOf(specialties);
+    }
+
+    public DoctorDto getCurrentDoctor(AuthenticatedUser user) {
+        if (!user.isDoctor()) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only doctors can access doctor profile");
+        }
+        DoctorEntity doctor = doctorRepository.findById(user.userId())
+                .orElseGet(() -> doctorRepository.save(createShellDoctor(user.userId())));
+        return DoctorDto.fromEntity(doctor);
+    }
+
     public void updateProfile(AuthenticatedUser user, DoctorProfileUpdateRequest request) {
         if (!user.isDoctor()) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only doctors can update doctor profile");
@@ -69,6 +99,9 @@ public class DoctorService {
         if (request.getYearsOfExperience() != null) doctor.setYearsOfExperience(request.getYearsOfExperience());
         if (request.getConsultationFee() != null) doctor.setConsultationFee(request.getConsultationFee());
         if (request.getBio() != null) doctor.setBio(request.getBio());
+        if (request.getAvailabilityScheduleJson() != null) doctor.setAvailabilityScheduleJson(request.getAvailabilityScheduleJson());
+        if (request.getSlotDuration() != null) doctor.setSlotDuration(request.getSlotDuration());
+        if (request.getAvailabilityLocation() != null) doctor.setAvailabilityLocation(request.getAvailabilityLocation());
 
         doctorRepository.save(doctor);
     }

@@ -54,6 +54,12 @@ public class PatientEntity {
     @Column(columnDefinition = "TEXT")
     private String currentMedicationsJson;
 
+    @Column(columnDefinition = "TEXT")
+    private String vitalsJson;
+
+    @Column(columnDefinition = "TEXT")
+    private String doctorNotes;
+
     @Column(nullable = false)
     private LocalDateTime createdAt;
 
@@ -177,5 +183,21 @@ public class PatientEntity {
 
     public void setCurrentMedicationsJson(String currentMedicationsJson) {
         this.currentMedicationsJson = currentMedicationsJson;
+    }
+
+    public String getVitalsJson() {
+        return vitalsJson;
+    }
+
+    public void setVitalsJson(String vitalsJson) {
+        this.vitalsJson = vitalsJson;
+    }
+
+    public String getDoctorNotes() {
+        return doctorNotes;
+    }
+
+    public void setDoctorNotes(String doctorNotes) {
+        this.doctorNotes = doctorNotes;
     }
 }

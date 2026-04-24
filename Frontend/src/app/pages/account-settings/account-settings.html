@@ -231,11 +231,10 @@
           <div class="form-grid">
             <div class="form-group">
               <label class="form-label">Specialty</label>
-              <input 
-                type="text" 
-                class="form-input" 
-                [(ngModel)]="userProfile.doctorInfo.specialty"
-                placeholder="e.g., Cardiology">
+              <select class="form-input" [(ngModel)]="userProfile.doctorInfo.specialty">
+                <option value="">Select specialty</option>
+                <option *ngFor="let specialty of doctorSpecialties" [value]="specialty">{{ specialty }}</option>
+              </select>
             </div>
 
             <div class="form-group">
@@ -263,6 +262,79 @@
                 class="form-input" 
                 [(ngModel)]="userProfile.doctorInfo.yearsOfExperience"
                 placeholder="0">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Consultation Fee (FCFA)</label>
+              <input
+                type="number"
+                class="form-input"
+                [(ngModel)]="userProfile.doctorInfo.consultationFee"
+                placeholder="e.g. 25000"
+                min="0">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Slot Duration (minutes)</label>
+              <select class="form-input" [(ngModel)]="userProfile.doctorInfo.slotDuration">
+                <option [value]="15">15</option>
+                <option [value]="20">20</option>
+                <option [value]="30">30</option>
+                <option [value]="45">45</option>
+                <option [value]="60">60</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Availability Location</label>
+              <input
+                type="text"
+                class="form-input"
+                [(ngModel)]="userProfile.doctorInfo.availabilityLocation"
+                placeholder="e.g. Main Clinic, Room 12">
+            </div>
+
+            <div class="form-group" style="grid-column: 1 / -1;">
+              <label class="form-label">Bio</label>
+              <textarea
+                class="form-input"
+                rows="4"
+                [(ngModel)]="userProfile.doctorInfo.bio"
+                placeholder="Short professional bio"></textarea>
+            </div>
+          </div>
+
+          <div class="subsection">
+            <h4 class="subsection-title">Weekly Availability</h4>
+            <div *ngFor="let day of availabilityDays" class="array-item">
+              <div class="form-grid">
+                <div class="form-group">
+                  <label class="form-label">{{ day.label }}</label>
+                  <select
+                    class="form-input"
+                    [ngModel]="userProfile.doctorInfo.availabilitySchedule[day.key].isOpen"
+                    (ngModelChange)="setDoctorDayOpen(day.key, $event)">
+                    <option [ngValue]="true">Open</option>
+                    <option [ngValue]="false">Closed</option>
+                  </select>
+                </div>
+
+                <div class="form-group" *ngIf="userProfile.doctorInfo.availabilitySchedule[day.key].isOpen">
+                  <label class="form-label">Start Hour</label>
+                  <input
+                    type="time"
+                    class="form-input"
+                    [(ngModel)]="userProfile.doctorInfo.availabilitySchedule[day.key].slots[0].start">
+                </div>
+
+                <div class="form-group" *ngIf="userProfile.doctorInfo.availabilitySchedule[day.key].isOpen">
+                  <label class="form-label">End Hour</label>
+                  <input
+                    type="time"
+                    class="form-input"
+                    [(ngModel)]="userProfile.doctorInfo.availabilitySchedule[day.key].slots[0].end">
+                </div>
+              </div>
             </div>
           </div>
         </div>

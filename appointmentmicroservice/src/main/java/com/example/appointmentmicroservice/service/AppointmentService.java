@@ -122,6 +122,18 @@ public class AppointmentService {
         return data.stream().map(AppointmentDto::fromEntity).toList();
     }
 
+    public AppointmentDto getAppointmentById(AuthenticatedUser user, String appointmentId) {
+        AppointmentEntity appointment = appointmentRepository.findById(appointmentId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Appointment not found"));
+
+        boolean isOwner = user.userId().equals(appointment.getPatientId()) || user.userId().equals(appointment.getDoctorId());
+        if (!isOwner) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You are not allowed to access this appointment");
+        }
+
+        return AppointmentDto.fromEntity(appointment);
+    }
+
     public AppointmentDto respondToAppointment(AuthenticatedUser user, String appointmentId, AppointmentActionRequest request) {
         if (!user.isDoctor()) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only doctors can respond to appointment requests");

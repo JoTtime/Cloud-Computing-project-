@@ -130,12 +130,18 @@ export class FindDoctors implements OnInit {
         if (response.success && response.connections) {
           console.log('✅ Patient connections:', response.connections.length);
           
-          const connectionMap = new Map();
+          const connectionMap = new Map<string, { isConnected: boolean; isPending: boolean; connectionId?: string }>();
           response.connections.forEach(conn => {
-            const doctorId = (conn.doctor as any)._id || (conn.doctor as any).userId;
+            const doctorValue: any = conn.doctor;
+            const doctorId = typeof doctorValue === 'string'
+              ? doctorValue
+              : doctorValue?._id || doctorValue?.id || doctorValue?.userId;
+            if (!doctorId) {
+              return;
+            }
             connectionMap.set(doctorId, {
-              isConnected: conn.status === 'accepted',
-              isPending: conn.status === 'pending',
+              isConnected: String(conn.status).toLowerCase() === 'accepted',
+              isPending: String(conn.status).toLowerCase() === 'pending',
               connectionId: conn._id
             });
           });
@@ -156,6 +162,33 @@ export class FindDoctors implements OnInit {
       error: (error) => {
         console.error('❌ Error checking connections:', error);
         this.filterDoctors();
+      }
+    });
+  }
+
+  disconnectDoctor(doctor: DoctorDisplay): void {
+    if (!doctor.isConnected || !doctor.connectionId) {
+      alert('No active connection found for this doctor.');
+      return;
+    }
+
+    const confirmed = confirm(`Disconnect from Dr. ${doctor.lastName}? You can reconnect later if needed.`);
+    if (!confirmed) {
+      return;
+    }
+
+    this.connectionService.revokeConnection(doctor.connectionId).subscribe({
+      next: (response) => {
+        if (response.success) {
+          doctor.isConnected = false;
+          doctor.isPending = false;
+          doctor.connectionId = undefined;
+          alert(`You are now disconnected from Dr. ${doctor.lastName}.`);
+        }
+      },
+      error: (error) => {
+        console.error('❌ Error disconnecting doctor:', error);
+        alert('Failed to disconnect from doctor. Please try again.');
       }
     });
   }

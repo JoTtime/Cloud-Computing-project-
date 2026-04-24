@@ -25,6 +25,7 @@ Render will create:
 - `doctormicroservice`
 - `patientmicroservice`
 - `appointmentmicroservice`
+- `billingmicroservice`
 - `medconnect-frontend` (static site)
 
 ## 3) Set required environment variables
@@ -33,7 +34,7 @@ After first sync, set these values in Render:
 
 ### Shared for all Java microservices
 
-- `JWT_SECRET` -> same value in **all 4** microservices.
+- `JWT_SECRET` -> same value in **all 5** microservices.
 - `APP_CORS_ALLOWED_ORIGINS` -> your frontend domain, for example:
   - `https://medconnect-frontend.onrender.com`
 
@@ -45,12 +46,13 @@ Set these with your deployed backend URLs:
 - `APPOINTMENT_API_URL` -> `https://<appointmentmicroservice>.onrender.com/api`
 - `DOCTOR_API_URL` -> `https://<doctormicroservice>.onrender.com/api`
 - `PATIENT_API_URL` -> `https://<patientmicroservice>.onrender.com/api`
+- `BILLING_API_URL` -> `https://<billingmicroservice>.onrender.com/api`
 
 ## 4) Redeploy frontend and backends
 
 After setting env vars:
 
-1. Trigger **Manual Deploy** for all 4 microservices.
+1. Trigger **Manual Deploy** for all 5 microservices.
 2. Trigger **Manual Deploy** for frontend.
 
 ## 5) Verify app

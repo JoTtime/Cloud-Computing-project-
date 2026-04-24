@@ -37,6 +37,14 @@ public class DoctorController {
         return ResponseEntity.ok(DoctorResponse.successWithDoctors(doctorService.getDoctors(specialty, search)));
     }
 
+    @GetMapping("/specialties")
+    public ResponseEntity<DoctorResponse> getSpecialties(
+            @RequestHeader("Authorization") String authorization
+    ) {
+        jwtService.authenticate(authorization);
+        return ResponseEntity.ok(DoctorResponse.successWithSpecialties(doctorService.getSpecialties()));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<DoctorResponse> getDoctorById(
             @PathVariable String id,
@@ -44,6 +52,14 @@ public class DoctorController {
     ) {
         jwtService.authenticate(authorization);
         return ResponseEntity.ok(DoctorResponse.successWithDoctor(doctorService.getDoctorById(id)));
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<DoctorResponse> getCurrentDoctor(
+            @RequestHeader("Authorization") String authorization
+    ) {
+        AuthenticatedUser user = jwtService.authenticate(authorization);
+        return ResponseEntity.ok(DoctorResponse.successWithDoctor(doctorService.getCurrentDoctor(user)));
     }
 
     @PatchMapping("/profile")

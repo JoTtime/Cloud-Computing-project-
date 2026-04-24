@@ -71,14 +71,6 @@ export class Dashboard implements OnInit, OnDestroy {
   
   stats: StatCard[] = [
     {
-      title: 'Total Documents',
-      value: 0,
-      subtitle: 'Loading...',
-      iconType: 'documents',
-      iconColor: '#4A90E2',
-      bgColor: '#EBF5FF'
-    },
-    {
       title: 'Connected Doctors',
       value: 0,
       subtitle: 'Loading...',
@@ -208,30 +200,12 @@ export class Dashboard implements OnInit, OnDestroy {
       error: (error) => {
         console.error('❌ Error loading dashboard data:', error);
         this.loading = false;
-        // Set default values on error
-        this.stats[0].subtitle = 'Unable to load';
-        this.stats[1].subtitle = 'Unable to load';
-        this.stats[2].subtitle = 'Unable to load';
-        this.stats[3].subtitle = 'Unable to load';
+        this.stats.forEach(stat => stat.subtitle = 'Unable to load');
       }
     });
   }
 
   processDocuments(documents: DocumentResponse[]): void {
-    // Update total documents stat
-    this.stats[0].value = documents.length;
-    
-    // Calculate documents added this month
-    const now = new Date();
-    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const docsThisMonth = documents.filter(doc => 
-      new Date(doc.docDate) >= firstDayOfMonth
-    ).length;
-    
-    this.stats[0].subtitle = docsThisMonth > 0 
-      ? `+${docsThisMonth} this month` 
-      : 'No new documents this month';
-
     // Get 4 most recent documents
     const sortedDocs = [...documents].sort((a, b) => 
       new Date(b.docDate).getTime() - new Date(a.docDate).getTime()
@@ -247,20 +221,54 @@ export class Dashboard implements OnInit, OnDestroy {
   }
 
   processConnections(connections: any[]): void {
-    // Count accepted connections
-    const acceptedConnections = connections.filter(conn => 
-      conn.status === 'accepted'
-    ).length;
-    
-    this.stats[1].value = acceptedConnections;
-    
-    // Count active connections (those with recent activity)
-    const activeCount = connections.filter(conn => 
-      conn.status === 'accepted' && conn.lastMessageDate
-    ).length;
-    
-    this.stats[1].subtitle = activeCount > 0 
-      ? `${activeCount} active` 
+    // Normalize accepted connections and count unique doctors only.
+    const acceptedConnections = connections.filter(conn =>
+      String(conn?.status ?? '').toLowerCase() === 'accepted'
+    );
+
+    const uniqueDoctorIds = new Set<string>();
+    acceptedConnections.forEach(conn => {
+      const rawDoctor = conn?.doctor;
+      if (!rawDoctor) return;
+
+      // Backend may return doctor as object, _id field, or plain string id.
+      if (typeof rawDoctor === 'string') {
+        uniqueDoctorIds.add(rawDoctor);
+        return;
+      }
+
+      const doctorId = rawDoctor._id || rawDoctor.id || rawDoctor.userId;
+      if (doctorId) {
+        uniqueDoctorIds.add(doctorId);
+      }
+    });
+
+    const doctorStat = this.getStat('Connected Doctors');
+    if (!doctorStat) return;
+    doctorStat.value = uniqueDoctorIds.size;
+
+    // Active doctor = at least one accepted connection with recent message/update.
+    const activeDoctorIds = new Set<string>();
+    acceptedConnections.forEach(conn => {
+      const hasActivity = !!(conn?.lastMessageDate || conn?.updatedAt);
+      if (!hasActivity) return;
+
+      const rawDoctor = conn?.doctor;
+      if (!rawDoctor) return;
+
+      if (typeof rawDoctor === 'string') {
+        activeDoctorIds.add(rawDoctor);
+        return;
+      }
+
+      const doctorId = rawDoctor._id || rawDoctor.id || rawDoctor.userId;
+      if (doctorId) {
+        activeDoctorIds.add(doctorId);
+      }
+    });
+
+    doctorStat.subtitle = activeDoctorIds.size > 0
+      ? `${activeDoctorIds.size} active`
       : 'No active connections';
   }
 
@@ -287,26 +295,29 @@ export class Dashboard implements OnInit, OnDestroy {
 
     // Filter upcoming appointments
     const upcomingAppointments = appointments.filter(apt => {
-      const aptDate = new Date(apt.date);
+      const aptDate = this.parseDateOnly(apt.date);
       aptDate.setHours(0, 0, 0, 0);
+      const normalizedStatus = String(apt.status ?? '').toLowerCase();
       return aptDate >= now && 
-             apt.status !== 'cancelled' && 
-             apt.status !== 'completed' &&
-             apt.status !== 'rejected';
+             normalizedStatus !== 'cancelled' && 
+             normalizedStatus !== 'completed' &&
+             normalizedStatus !== 'rejected';
     });
 
-    this.stats[2].value = upcomingAppointments.length;
+    const appointmentStat = this.getStat('Upcoming Appointments');
+    if (!appointmentStat) return;
+    appointmentStat.value = upcomingAppointments.length;
 
     // Get next appointment date
     if (upcomingAppointments.length > 0) {
       const sortedApts = upcomingAppointments.sort((a, b) => 
-        new Date(a.date).getTime() - new Date(b.date).getTime()
+        this.parseDateOnly(a.date).getTime() - this.parseDateOnly(b.date).getTime()
       );
       const nextApt = sortedApts[0];
       const nextDate = new Date(nextApt.date);
-      this.stats[2].subtitle = `Next: ${this.formatShortDate(nextDate)}`;
+      appointmentStat.subtitle = `Next: ${this.formatShortDate(nextDate)}`;
     } else {
-      this.stats[2].subtitle = 'No upcoming appointments';
+      appointmentStat.subtitle = 'No upcoming appointments';
     }
   }
 
@@ -372,45 +383,47 @@ export class Dashboard implements OnInit, OnDestroy {
   }
 
   calculateHealthScore(patient: any): void {
+    const healthStat = this.getStat('Health Score');
+    if (!healthStat) return;
     if (!patient) {
-      this.stats[3].value = '--';
-      this.stats[3].subtitle = 'Complete profile to see score';
+      healthStat.value = '--';
+      healthStat.subtitle = 'No vitals yet';
       return;
     }
 
-    let score = 0;
-    let maxScore = 100;
-
-    // Profile completeness (40 points)
-    if (patient.dateOfBirth) score += 10;
-    if (patient.gender) score += 10;
-    if (patient.bloodType) score += 10;
-    if (patient.emergencyContact?.name) score += 10;
-
-    // Medical history (30 points)
-    if (patient.allergies && patient.allergies.length > 0) score += 15;
-    if (patient.currentMedications) score += 15;
-
-    // Activity (30 points)
-    // You can expand this based on recent appointments, document uploads, etc.
-    score += 30; // Default for now
-
-    const percentage = Math.round((score / maxScore) * 100);
-    this.stats[3].value = `${percentage}%`;
-    
-    if (percentage >= 80) {
-      this.stats[3].subtitle = 'Excellent';
-      this.stats[3].iconColor = '#28A745';
-    } else if (percentage >= 60) {
-      this.stats[3].subtitle = 'Good condition';
-      this.stats[3].iconColor = '#28A745';
-    } else if (percentage >= 40) {
-      this.stats[3].subtitle = 'Fair';
-      this.stats[3].iconColor = '#FFC107';
-    } else {
-      this.stats[3].subtitle = 'Needs improvement';
-      this.stats[3].iconColor = '#FF9800';
+    const vitals = Array.isArray(patient.vitals) ? [...patient.vitals] : [];
+    if (vitals.length === 0) {
+      healthStat.value = '--';
+      healthStat.subtitle = 'No heart rate recorded';
+      return;
     }
+
+    const latestVital = vitals.sort((a, b) => new Date(b.recordedAt).getTime() - new Date(a.recordedAt).getTime())[0];
+    const heartRate = latestVital?.heartRateBpm;
+
+    if (heartRate === undefined || heartRate === null) {
+      healthStat.value = '--';
+      healthStat.subtitle = 'No heart rate recorded';
+      return;
+    }
+
+    healthStat.value = `${heartRate} bpm`;
+    healthStat.subtitle = `Recorded ${this.formatShortDate(new Date(latestVital.recordedAt))}`;
+    healthStat.iconColor = '#28A745';
+  }
+
+  private getStat(title: string): StatCard | undefined {
+    return this.stats.find(stat => stat.title === title);
+  }
+
+  private parseDateOnly(input: string): Date {
+    if (!input) return new Date(NaN);
+    const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(input);
+    if (match) {
+      const [, y, m, d] = match;
+      return new Date(Number(y), Number(m) - 1, Number(d));
+    }
+    return new Date(input);
   }
 
   formatDate(dateString: string): string {

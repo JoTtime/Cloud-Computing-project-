@@ -49,4 +49,16 @@ public class PatientController {
         AuthenticatedUser user = jwtService.authenticate(authorization);
         return ResponseEntity.ok(PatientResponse.successWithPatient(patientService.getPatientById(user, id)));
     }
+
+    @PutMapping("/{id}/clinical")
+    public ResponseEntity<PatientResponse> updatePatientClinicalByDoctor(
+            @PathVariable String id,
+            @RequestBody PatientProfileUpdateRequest request,
+            @RequestHeader("Authorization") String authorization
+    ) {
+        AuthenticatedUser user = jwtService.authenticate(authorization);
+        return ResponseEntity.ok(PatientResponse.successWithPatient(
+                patientService.updatePatientClinicalByDoctor(user, id, request)
+        ));
+    }
 }

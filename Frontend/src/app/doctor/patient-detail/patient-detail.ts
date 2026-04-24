@@ -4,7 +4,7 @@ import { ActivatedRoute } from '@angular/router';
 import {  Router } from '@angular/router';
 import { SharedHeader } from '../../features/shared-header/shared-header';
 import { FormsModule } from '@angular/forms';
-import { PatientProfileService, PatientProfile } from '../../services/patient-profile';
+import { PatientProfileService, PatientProfile, VitalRecord, PatientProfileResponse } from '../../services/patient-profile';
 import { ConnectionService } from '../../services/connection';
 import { MessageService } from '../../services/message';
 
@@ -25,6 +25,11 @@ export class PatientDetail implements OnInit {
   messageText: string = '';
   attachedFile: File | null = null;
   connectionId: string | null = null;
+  notesText: string = '';
+  savingNotes: boolean = false;
+  showVitalsModal: boolean = false;
+  savingVitals: boolean = false;
+  newVital: VitalRecord = this.getEmptyVital();
   
   @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
 
@@ -48,12 +53,16 @@ export class PatientDetail implements OnInit {
     console.log('📥 Loading patient data...');
     
     this.patientProfileService.getPatientById(this.patientId).subscribe({
-      next: (response) => {
-        if (response.success) {
-          this.patient = response.patient;
+      next: (response: PatientProfileResponse) => {
+        if (response.success && response.patient) {
+          const p = response.patient;
+          this.patient = p;
+          this.notesText = p.doctorNotes || '';
           console.log('✅ Patient data loaded:', this.patient);
         } else {
           console.warn('⚠️ Patient data load failed:', response);
+          this.patient = null;
+          this.notesText = '';
         }
         this.loading = false;
       },
@@ -135,6 +144,11 @@ export class PatientDetail implements OnInit {
     return !!(this.patient?.currentMedications && this.patient.currentMedications.length > 0);
   }
 
+  get vitals(): VitalRecord[] {
+    const data = this.patient?.vitals ?? [];
+    return [...data].sort((a, b) => new Date(b.recordedAt).getTime() - new Date(a.recordedAt).getTime());
+  }
+
   formatDate(dateString: string | undefined): string {
     if (!dateString) return 'N/A';
     try {
@@ -152,6 +166,75 @@ export class PatientDetail implements OnInit {
   setTab(tab: string) {
     this.activeTab = tab;
     console.log('📑 Tab changed to:', tab);
+  }
+
+  openVitalsModal(): void {
+    this.newVital = this.getEmptyVital();
+    this.showVitalsModal = true;
+  }
+
+  closeVitalsModal(): void {
+    this.showVitalsModal = false;
+    this.newVital = this.getEmptyVital();
+  }
+
+  saveVitals(): void {
+    if (!this.patient) return;
+    if (!this.newVital.recordedAt || !this.newVital.bloodPressureMmHg) {
+      alert('Please fill in date and blood pressure.');
+      return;
+    }
+
+    const updatedVitals = [this.newVital, ...(this.patient.vitals || [])]
+      .sort((a, b) => new Date(b.recordedAt).getTime() - new Date(a.recordedAt).getTime());
+
+    this.savingVitals = true;
+    this.patientProfileService.updatePatientClinicalByDoctor(this.patientId, { vitals: updatedVitals }).subscribe({
+      next: (response: PatientProfileResponse) => {
+        if (response.success && response.patient) {
+          this.patient = response.patient;
+        } else if (this.patient) {
+          this.patient.vitals = updatedVitals;
+        }
+        this.savingVitals = false;
+        this.closeVitalsModal();
+      },
+      error: () => {
+        this.savingVitals = false;
+        alert('Failed to save vitals. Please try again.');
+      }
+    });
+  }
+
+  saveNotes(): void {
+    if (!this.patient) return;
+    this.savingNotes = true;
+    this.patientProfileService.updatePatientClinicalByDoctor(this.patientId, { doctorNotes: this.notesText }).subscribe({
+      next: (response: PatientProfileResponse) => {
+        if (response.success && response.patient) {
+          this.patient = response.patient;
+        } else if (this.patient) {
+          this.patient.doctorNotes = this.notesText;
+        }
+        this.savingNotes = false;
+        alert('Notes saved successfully.');
+      },
+      error: () => {
+        this.savingNotes = false;
+        alert('Failed to save notes. Please try again.');
+      }
+    });
+  }
+
+  private getEmptyVital(): VitalRecord {
+    return {
+      recordedAt: '',
+      bloodPressureMmHg: '',
+      heartRateBpm: 0,
+      temperatureCelsius: 0,
+      heightCm: 0,
+      weightKg: 0
+    };
   }
 
   cancel(): void {

@@ -20,7 +20,9 @@ public record PatientDto(
         List<Map<String, Object>> allergies,
         Map<String, Object> emergencyContact,
         List<Map<String, Object>> medicalHistory,
-        List<Map<String, Object>> currentMedications
+        List<Map<String, Object>> currentMedications,
+        List<Map<String, Object>> vitals,
+        String doctorNotes
 ) {
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
@@ -38,7 +40,9 @@ public record PatientDto(
                 parseList(patient.getAllergiesJson()),
                 parseMap(patient.getEmergencyContactJson()),
                 parseList(patient.getMedicalHistoryJson()),
-                parseList(patient.getCurrentMedicationsJson())
+                parseList(patient.getCurrentMedicationsJson()),
+                parseList(patient.getVitalsJson()),
+                patient.getDoctorNotes()
         );
     }
 

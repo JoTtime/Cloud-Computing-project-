@@ -11,7 +11,8 @@ const env = {
   apiUrl: process.env.USER_API_URL || 'https://usermicroservice-omdq.onrender.com/api',
   appointmentApiUrl: process.env.APPOINTMENT_API_URL || 'https://appointmentmicroservice.onrender.com/api',
   doctorApiUrl: process.env.DOCTOR_API_URL || 'https://doctormicroservice.onrender.com/api',
-  patientApiUrl: process.env.PATIENT_API_URL || 'https://patientmicroservice.onrender.com/api'
+  patientApiUrl: process.env.PATIENT_API_URL || 'https://patientmicroservice.onrender.com/api',
+  billingApiUrl: process.env.BILLING_API_URL || 'https://billingmicroservice.onrender.com/api'
 };
 
 const fileContent = `export const environment = ${JSON.stringify(env, null, 2)};\n`;

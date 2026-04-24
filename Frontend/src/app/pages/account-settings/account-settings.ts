@@ -4,6 +4,17 @@ import { FormsModule } from '@angular/forms';
 import { Router, RouterModule} from '@angular/router';
 import { Auth } from '../../services/auth';
 import { PatientProfileService, PatientProfile, Allergy, Medication, EmergencyContact } from '../../services/patient-profile';
+import { DoctorProfile, DoctorProfileData } from '../../services/doctor-profile';
+
+interface TimeSlot {
+  start: string;
+  end: string;
+}
+
+interface DaySchedule {
+  isOpen: boolean;
+  slots: TimeSlot[];
+}
 
 interface UserProfile {
   name: string;
@@ -24,6 +35,11 @@ interface UserProfile {
     licenseNumber: string;
     hospital: string;
     yearsOfExperience: number;
+    consultationFee: number;
+    bio: string;
+    slotDuration: number;
+    availabilityLocation: string;
+    availabilitySchedule: Record<string, DaySchedule>;
   };
 }
 
@@ -74,17 +90,36 @@ activeTab: 'profile' | 'roles' | 'security' = 'profile';
   // Role activation
   showRoleActivation: boolean = false;
   pendingRole: 'patient' | 'doctor' | null = null;
+  readonly availabilityDays = [
+    { key: 'monday', label: 'Monday' },
+    { key: 'tuesday', label: 'Tuesday' },
+    { key: 'wednesday', label: 'Wednesday' },
+    { key: 'thursday', label: 'Thursday' },
+    { key: 'friday', label: 'Friday' },
+    { key: 'saturday', label: 'Saturday' },
+    { key: 'sunday', label: 'Sunday' }
+  ];
+  readonly doctorSpecialties = [
+    'Cardiology',
+    'General Practice',
+    'Pediatrics',
+    'Orthopedic Surgery',
+    'Dermatology',
+    'Neurology'
+  ];
 
   constructor(
     private router: Router,
     private authService: Auth,
-    private patientProfileService: PatientProfileService
+    private patientProfileService: PatientProfileService,
+    private doctorProfileService: DoctorProfile
   ) {}
 
  
   ngOnInit(): void {
     this.loadUserFromAuth();
     this.loadPatientMedicalInfo();
+    this.loadDoctorProfileInfo();
   }
 
   loadPatientMedicalInfo(): void {
@@ -110,6 +145,36 @@ activeTab: 'profile' | 'roles' | 'security' = 'profile';
         }
       });
     }
+  }
+
+  loadDoctorProfileInfo(): void {
+    const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+    if (currentUser.userType !== 'doctor') {
+      return;
+    }
+
+    this.doctorProfileService.getCurrentDoctor().subscribe({
+      next: (response) => {
+        if (!response.success || !response.doctor) return;
+
+        const doctor = response.doctor;
+        if (!this.userProfile.doctorInfo) {
+          this.userProfile.doctorInfo = this.createEmptyDoctorInfo();
+        }
+
+        this.userProfile.doctorInfo.specialty = doctor.specialty || '';
+        this.userProfile.doctorInfo.hospital = doctor.hospital || '';
+        this.userProfile.doctorInfo.yearsOfExperience = Number(doctor.yearsOfExperience) || 0;
+        this.userProfile.doctorInfo.consultationFee = Number(doctor.consultationFee) || 0;
+        this.userProfile.doctorInfo.bio = doctor.bio || '';
+        this.userProfile.doctorInfo.slotDuration = Number(doctor.slotDuration) || 30;
+        this.userProfile.doctorInfo.availabilityLocation = doctor.availabilityLocation || '';
+        this.userProfile.doctorInfo.availabilitySchedule = this.normalizeSchedule(doctor.availabilityScheduleJson);
+      },
+      error: (error) => {
+        console.error('Error loading doctor profile info:', error);
+      }
+    });
   }
 
     loadUserFromAuth(): void {
@@ -150,12 +215,7 @@ activeTab: 'profile' | 'roles' | 'security' = 'profile';
             emergencyContact: ''
           };
         } else if (user.userType === 'doctor') {
-          this.userProfile.doctorInfo = {
-            specialty: '',
-            licenseNumber: '',
-            hospital: '',
-            yearsOfExperience: 0
-          };
+          this.userProfile.doctorInfo = this.createEmptyDoctorInfo();
         }
       }
     } else {
@@ -203,21 +263,41 @@ activeTab: 'profile' | 'roles' | 'security' = 'profile';
       }
     });
   } else if (currentUser.userType === 'doctor') {
-    // TODO: Add doctor profile update logic if needed
-    // For now, just update localStorage
-    localStorage.setItem('userProfile', JSON.stringify(this.userProfile));
-    
-    // Update currentUser with basic info changes
-    const nameParts = this.userProfile.name.split(' ');
-    currentUser.firstName = nameParts[0] || '';
-    currentUser.lastName = nameParts.slice(1).join(' ') || '';
-    currentUser.email = this.userProfile.email;
-    currentUser.phone = this.userProfile.phone;
-    currentUser.address = this.userProfile.address;
-    
-    localStorage.setItem('currentUser', JSON.stringify(currentUser));
-    
-    alert('Profile updated successfully!');
+    const doctorInfo = this.userProfile.doctorInfo ?? this.createEmptyDoctorInfo();
+    const doctorPayload: DoctorProfileData = {
+      firstName: this.userProfile.name.split(' ')[0] || '',
+      lastName: this.userProfile.name.split(' ').slice(1).join(' ') || '',
+      email: this.userProfile.email,
+      phone: this.userProfile.phone,
+      specialty: doctorInfo.specialty,
+      hospital: doctorInfo.hospital,
+      yearsOfExperience: doctorInfo.yearsOfExperience,
+      consultationFee: doctorInfo.consultationFee,
+      bio: doctorInfo.bio,
+      slotDuration: doctorInfo.slotDuration,
+      availabilityLocation: doctorInfo.availabilityLocation,
+      availabilityScheduleJson: JSON.stringify(doctorInfo.availabilitySchedule)
+    };
+
+    this.doctorProfileService.updateProfile(doctorPayload).subscribe({
+      next: () => {
+        localStorage.setItem('userProfile', JSON.stringify(this.userProfile));
+
+        const nameParts = this.userProfile.name.split(' ');
+        currentUser.firstName = nameParts[0] || '';
+        currentUser.lastName = nameParts.slice(1).join(' ') || '';
+        currentUser.email = this.userProfile.email;
+        currentUser.phone = this.userProfile.phone;
+        currentUser.address = this.userProfile.address;
+
+        localStorage.setItem('currentUser', JSON.stringify(currentUser));
+        alert('Doctor profile updated successfully!');
+      },
+      error: (error) => {
+        console.error('Error updating doctor profile:', error);
+        alert('Failed to update doctor profile. Please try again.');
+      }
+    });
   } else {
     // For other user types (admin, etc.)
     localStorage.setItem('userProfile', JSON.stringify(this.userProfile));
@@ -334,12 +414,7 @@ activeTab: 'profile' | 'roles' | 'security' = 'profile';
     } else if (this.pendingRole === 'doctor') {
       this.userProfile.roles.isDoctor = true;
       if (!this.userProfile.doctorInfo) {
-        this.userProfile.doctorInfo = {
-          specialty: '',
-          licenseNumber: '',
-          hospital: '',
-          yearsOfExperience: 0
-        };
+        this.userProfile.doctorInfo = this.createEmptyDoctorInfo();
       }
     }
     this.saveProfile();
@@ -359,6 +434,69 @@ activeTab: 'profile' | 'roles' | 'security' = 'profile';
       this.router.navigate(['/doctor-dashboard']);
     } else {
       this.router.navigate(['/patient-dashboard']);
+    }
+  }
+
+  setDoctorDayOpen(dayKey: string, isOpen: boolean): void {
+    if (!this.userProfile.doctorInfo) return;
+    const day = this.userProfile.doctorInfo.availabilitySchedule[dayKey];
+    day.isOpen = isOpen;
+    if (day.isOpen && day.slots.length === 0) {
+      day.slots = [{ start: '09:00', end: '17:00' }];
+    }
+    if (!day.isOpen) {
+      day.slots = [];
+    }
+  }
+
+  private createEmptyDoctorInfo() {
+    return {
+      specialty: '',
+      licenseNumber: '',
+      hospital: '',
+      yearsOfExperience: 0,
+      consultationFee: 0,
+      bio: '',
+      slotDuration: 30,
+      availabilityLocation: '',
+      availabilitySchedule: this.getDefaultSchedule()
+    };
+  }
+
+  private getDefaultSchedule(): Record<string, DaySchedule> {
+    return {
+      monday: { isOpen: true, slots: [{ start: '09:00', end: '17:00' }] },
+      tuesday: { isOpen: true, slots: [{ start: '09:00', end: '17:00' }] },
+      wednesday: { isOpen: true, slots: [{ start: '09:00', end: '17:00' }] },
+      thursday: { isOpen: true, slots: [{ start: '09:00', end: '17:00' }] },
+      friday: { isOpen: true, slots: [{ start: '09:00', end: '17:00' }] },
+      saturday: { isOpen: false, slots: [] },
+      sunday: { isOpen: false, slots: [] }
+    };
+  }
+
+  private normalizeSchedule(rawScheduleJson?: string): Record<string, DaySchedule> {
+    if (!rawScheduleJson) return this.getDefaultSchedule();
+    try {
+      const parsed = JSON.parse(rawScheduleJson);
+      const normalized = this.getDefaultSchedule();
+      this.availabilityDays.forEach(day => {
+        const dayValue = parsed?.[day.key];
+        if (Array.isArray(dayValue)) {
+          normalized[day.key] = {
+            isOpen: dayValue.length > 0,
+            slots: dayValue.length > 0 ? dayValue : []
+          };
+        } else if (dayValue && typeof dayValue === 'object') {
+          normalized[day.key] = {
+            isOpen: !!dayValue.isOpen,
+            slots: Array.isArray(dayValue.slots) ? dayValue.slots : []
+          };
+        }
+      });
+      return normalized;
+    } catch {
+      return this.getDefaultSchedule();
     }
   }
 

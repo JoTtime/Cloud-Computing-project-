@@ -49,6 +49,14 @@ public class DoctorEntity {
     @Column(length = 1500)
     private String bio;
 
+    @Column(columnDefinition = "TEXT")
+    private String availabilityScheduleJson;
+
+    private Integer slotDuration;
+
+    @Column(length = 255)
+    private String availabilityLocation;
+
     @Column(nullable = false)
     private LocalDateTime createdAt;
 
@@ -192,5 +200,29 @@ public class DoctorEntity {
 
     public void setBio(String bio) {
         this.bio = bio;
+    }
+
+    public String getAvailabilityScheduleJson() {
+        return availabilityScheduleJson;
+    }
+
+    public void setAvailabilityScheduleJson(String availabilityScheduleJson) {
+        this.availabilityScheduleJson = availabilityScheduleJson;
+    }
+
+    public Integer getSlotDuration() {
+        return slotDuration;
+    }
+
+    public void setSlotDuration(Integer slotDuration) {
+        this.slotDuration = slotDuration;
+    }
+
+    public String getAvailabilityLocation() {
+        return availabilityLocation;
+    }
+
+    public void setAvailabilityLocation(String availabilityLocation) {
+        this.availabilityLocation = availabilityLocation;
     }
 }

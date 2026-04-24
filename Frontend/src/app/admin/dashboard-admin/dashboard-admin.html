@@ -1,0 +1,152 @@
+<div class="admin-layout">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-icon">M</div>
+      <div>
+        <h2>Med-Connect</h2>
+        <p>Admin Console</p>
+      </div>
+    </div>
+
+    <nav class="menu">
+      <button [class.active]="activeTab === 'overview'" (click)="setTab('overview')">Overview</button>
+      <button [class.active]="activeTab === 'patients'" (click)="setTab('patients')">Patients</button>
+      <button [class.active]="activeTab === 'doctors'" (click)="setTab('doctors')">Doctors</button>
+      <button [class.active]="activeTab === 'statistic'" (click)="setTab('statistic')">Statistic</button>
+    </nav>
+
+    <button class="logout" (click)="logout()">Logout</button>
+  </aside>
+
+  <main class="content">
+    <header class="topbar">
+      <div>
+        <h1>Admin Dashboard</h1>
+        <p>Manage users, approvals and registration statistic</p>
+      </div>
+      <div class="admin-pill">{{ userName }}</div>
+    </header>
+
+    <section class="cards" *ngIf="stats && !isLoading">
+      <article class="card">
+        <span>Total Patients</span>
+        <h3>{{ patients.length }}</h3>
+      </article>
+      <article class="card">
+        <span>Total Doctors</span>
+        <h3>{{ doctors.length }}</h3>
+      </article>
+      <article class="card">
+        <span>Pending Approvals</span>
+        <h3>{{ stats.pendingDoctorApprovals }}</h3>
+      </article>
+      <article class="card">
+        <span>New ({{ selectedPeriod }})</span>
+        <h3>{{ stats.totals.allUsers }}</h3>
+      </article>
+    </section>
+
+    <section *ngIf="isLoading" class="loading">Loading admin data...</section>
+
+    <section *ngIf="!isLoading && (activeTab === 'overview' || activeTab === 'statistic')" class="panel">
+      <div class="panel-head">
+        <h2>Registration Statistic</h2>
+        <div class="period-toggle">
+          <button [class.active]="selectedPeriod === 'week'" (click)="setPeriod('week')">Week</button>
+          <button [class.active]="selectedPeriod === 'month'" (click)="setPeriod('month')">Month</button>
+          <button [class.active]="selectedPeriod === 'year'" (click)="setPeriod('year')">Year</button>
+        </div>
+      </div>
+
+      <div class="graph-grid" *ngIf="stats">
+        <div class="graph-card">
+          <h3>Patient Registrations</h3>
+          <div class="bars">
+            <div class="bar-col" *ngFor="let p of stats.patientSeries">
+              <div class="bar patient" [style.height.%]="barHeight(p.count, maxCount(stats.patientSeries))"></div>
+              <small>{{ p.label }}</small>
+            </div>
+          </div>
+        </div>
+
+        <div class="graph-card">
+          <h3>Doctor Registrations</h3>
+          <div class="bars">
+            <div class="bar-col" *ngFor="let d of stats.doctorSeries">
+              <div class="bar doctor" [style.height.%]="barHeight(d.count, maxCount(stats.doctorSeries))"></div>
+              <small>{{ d.label }}</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section *ngIf="!isLoading && (activeTab === 'overview' || activeTab === 'doctors')" class="panel">
+      <h2>Doctors</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Phone</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let d of doctors">
+            <td>{{ d.firstName }} {{ d.lastName }}</td>
+            <td>{{ d.email }}</td>
+            <td>{{ d.phone || 'N/A' }}</td>
+            <td>{{ d.isVerified ? 'Approved' : 'Pending' }}</td>
+            <td class="actions">
+              <button (click)="openProfile(d)">Profile</button>
+              <button *ngIf="!d.isVerified" class="approve" (click)="approveDoctor(d)">Approve</button>
+              <button class="danger" (click)="deleteUser(d)">Delete</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section *ngIf="!isLoading && (activeTab === 'overview' || activeTab === 'patients')" class="panel">
+      <h2>Patients</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Phone</th>
+            <th>Address</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let p of patients">
+            <td>{{ p.firstName }} {{ p.lastName }}</td>
+            <td>{{ p.email }}</td>
+            <td>{{ p.phone || 'N/A' }}</td>
+            <td>{{ p.address || 'N/A' }}</td>
+            <td class="actions">
+              <button (click)="openProfile(p)">Profile</button>
+              <button class="danger" (click)="deleteUser(p)">Delete</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+  </main>
+</div>
+
+<div class="modal-backdrop" *ngIf="selectedUser" (click)="closeProfile()">
+  <article class="modal-card" (click)="$event.stopPropagation()">
+    <h3>User Profile</h3>
+    <p><strong>Name:</strong> {{ selectedUser?.firstName }} {{ selectedUser?.lastName }}</p>
+    <p><strong>Email:</strong> {{ selectedUser?.email }}</p>
+    <p><strong>Role:</strong> {{ selectedUser?.userType }}</p>
+    <p><strong>Phone:</strong> {{ selectedUser?.phone || 'N/A' }}</p>
+    <p><strong>Address:</strong> {{ selectedUser?.address || 'N/A' }}</p>
+    <p><strong>Registered:</strong> {{ selectedUser?.createdAt ? (selectedUser?.createdAt | date:'medium') : 'N/A' }}</p>
+    <button (click)="closeProfile()">Close</button>
+  </article>
+</div>

@@ -3,8 +3,6 @@ import { Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { SharedHeader } from '../../features/shared-header/shared-header';
-import { OnboardingComponent } from '../../features/onboarding/onboarding'; 
-import { OnboardingService } from '../../services/onboarding';
 import { forkJoin } from 'rxjs';
 import { ConnectionService } from '../../services/connection';
 import { AppointmentService, Appointment } from '../../services/appointment.service';
@@ -22,7 +20,7 @@ interface StatCard {
 @Component({
   selector: 'app-dashboard-doctor',
   standalone: true,
-  imports: [CommonModule, RouterModule, SharedHeader, OnboardingComponent],
+  imports: [CommonModule, RouterModule, SharedHeader],
   templateUrl: './dashboard-doctor.html',
   styleUrl: './dashboard-doctor.css',
 })
@@ -67,7 +65,6 @@ export class DashboardDoctor implements OnInit {
 
   constructor(
     private router: Router,
-    public onboardingService: OnboardingService,
     private connectionService: ConnectionService,
     private appointmentService: AppointmentService,
     private messageService: MessageService
@@ -79,11 +76,6 @@ export class DashboardDoctor implements OnInit {
     console.log('🟢 DashboardDoctor: ngOnInit called');
     this.loadDoctorInfo();
     this.loadDashboardData();
-    
-    // Small delay to ensure everything is loaded
-    setTimeout(() => {
-      this.checkOnboardingStatus();
-    }, 100);
   }
 
   private loadDoctorInfo(): void {
@@ -286,28 +278,5 @@ export class DashboardDoctor implements OnInit {
     tomorrow.setDate(tomorrow.getDate() + 1);
     return this.isSameDay(date, tomorrow);
   }
-
-  private checkOnboardingStatus(): void {
-    console.log('🟢 DashboardDoctor: Checking onboarding status...');
-    
-    const storedUser = localStorage.getItem('currentUser');
-    
-    if (storedUser) {
-      const user = JSON.parse(storedUser);
-      console.log('🟢 User type:', user.userType);
-      console.log('🟢 Is verified:', user.isVerified);
-      
-      // If doctor is not verified, show onboarding modal
-      if (user.userType === 'doctor' && !user.isVerified) {
-        console.log('🟢 ✅ Opening onboarding modal!');
-        this.onboardingService.open();
-      } else {
-        console.log('🟡 User is verified or not a doctor - not showing onboarding');
-      }
-    } else {
-      console.warn('🟡 No user found in localStorage');
-    }
-  }
-
 
 }

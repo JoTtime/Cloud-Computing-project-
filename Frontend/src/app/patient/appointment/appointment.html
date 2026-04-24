@@ -102,6 +102,9 @@
                   </svg>
                   <span class="detail-text">Video Call</span>
                 </div>
+                <div class="detail-item" *ngIf="appt.invoiceNumber">
+                  <span class="detail-text">Invoice {{ appt.invoiceNumber }} - {{ appt.invoiceAmountFcfa }} FCFA</span>
+                </div>
               </div>
             </div>
           </div>

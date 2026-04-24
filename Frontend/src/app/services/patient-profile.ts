@@ -28,6 +28,15 @@ export interface Medication {
   startDate: string;
 }
 
+export interface VitalRecord {
+  recordedAt: string;
+  bloodPressureMmHg: string;
+  heartRateBpm: number;
+  temperatureCelsius: number;
+  heightCm: number;
+  weightKg: number;
+}
+
 export interface PatientProfile {
   _id: string;
   firstName: string;
@@ -42,6 +51,14 @@ export interface PatientProfile {
   emergencyContact?: EmergencyContact;
   medicalHistory?: MedicalCondition[];
   currentMedications?: Medication[];
+  vitals?: VitalRecord[];
+  doctorNotes?: string;
+}
+
+export interface PatientProfileResponse {
+  success: boolean;
+  message?: string;
+  patient?: PatientProfile;
 }
 
 @Injectable({
@@ -60,25 +77,44 @@ export class PatientProfileService {
     });
   }
 
-  getMyProfile(): Observable<{ success: boolean; patient: PatientProfile }> {
-    return this.http.get<{ success: boolean; patient: PatientProfile }>(
+  private getJsonAuthHeaders(): HttpHeaders {
+    const token = localStorage.getItem('token');
+    return new HttpHeaders({
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    });
+  }
+
+  getMyProfile(): Observable<PatientProfileResponse> {
+    return this.http.get<PatientProfileResponse>(
       `${this.apiUrl}/profile`,
       { headers: this.getAuthHeaders() }
     );
   }
 
-  updateProfile(profileData: Partial<PatientProfile>): Observable<any> {
-    return this.http.put(
+  updateProfile(profileData: Partial<PatientProfile>): Observable<PatientProfileResponse> {
+    return this.http.put<PatientProfileResponse>(
       `${this.apiUrl}/profile`,
       profileData,
+      { headers: this.getJsonAuthHeaders() }
+    );
+  }
+
+  getPatientById(id: string): Observable<PatientProfileResponse> {
+    return this.http.get<PatientProfileResponse>(
+      `${this.apiUrl}/${id}`,
       { headers: this.getAuthHeaders() }
     );
   }
 
-  getPatientById(id: string): Observable<{ success: boolean; patient: PatientProfile }> {
-    return this.http.get<{ success: boolean; patient: PatientProfile }>(
-      `${this.apiUrl}/${id}`,
-      { headers: this.getAuthHeaders() }
+  updatePatientClinicalByDoctor(
+    id: string,
+    profileData: Partial<PatientProfile>
+  ): Observable<PatientProfileResponse> {
+    return this.http.put<PatientProfileResponse>(
+      `${this.apiUrl}/${id}/clinical`,
+      profileData,
+      { headers: this.getJsonAuthHeaders() }
     );
   }
   

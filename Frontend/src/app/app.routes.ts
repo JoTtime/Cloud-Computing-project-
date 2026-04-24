@@ -26,6 +26,18 @@ export const routes: Routes = [
       .then(m => m.AccountSettings)
   },
 
+  {
+    path: 'admin-dashboard',
+    loadComponent: () => import('./admin/dashboard-admin/dashboard-admin')
+      .then(m => m.DashboardAdmin)
+  },
+  
+  {
+    path: 'billing',
+    loadComponent: () => import('./pages/billing-dashboard/billing-dashboard')
+      .then(m => m.BillingDashboard)
+  },
+
   // ==========================================
   // PATIENT ROUTES
   // ==========================================

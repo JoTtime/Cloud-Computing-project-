@@ -126,6 +126,40 @@ services:
         sync: false
 
   - type: web
+    name: billingmicroservice
+    runtime: docker
+    plan: free
+    rootDir: billingmicroservice
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: SPRING_CLOUD_DISCOVERY_ENABLED
+        value: false
+      - key: EUREKA_CLIENT_ENABLED
+        value: false
+      - key: MEDCONNECT_DATABASE_CREATE_IF_NOT_EXISTS
+        value: false
+      - key: SPRING_DATASOURCE_URL
+        fromDatabase:
+          name: medconnect-db
+          property: jdbcConnectionString
+      - key: SPRING_DATASOURCE_USERNAME
+        fromDatabase:
+          name: medconnect-db
+          property: user
+      - key: SPRING_DATASOURCE_PASSWORD
+        fromDatabase:
+          name: medconnect-db
+          property: password
+      - key: JWT_SECRET
+        sync: false
+      - key: APPOINTMENT_API_URL
+        sync: false
+      - key: DOCTOR_API_URL
+        sync: false
+      - key: APP_CORS_ALLOWED_ORIGINS
+        sync: false
+
+  - type: web
     name: medconnect-frontend
     runtime: static
     rootDir: Frontend
@@ -143,4 +177,6 @@ services:
       - key: DOCTOR_API_URL
         sync: false
       - key: PATIENT_API_URL
+        sync: false
+      - key: BILLING_API_URL
         sync: false

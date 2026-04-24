@@ -7,94 +7,23 @@
     <div class="content-wrapper">
       <!-- Page Header -->
       <section class="page-header">
-        <h1 class="page-title">My Medical Records</h1>
-        <p class="page-subtitle">Manage and organize all your health documents</p>
+        <h1 class="page-title">My Vitals Records</h1>
+        <p class="page-subtitle">Track your blood pressure, heart rate, temperature, height, and weight.</p>
       </section>
 
-      <!-- Upload Section -->
       <section class="upload-section">
-        <div class="upload-content">
-          <div class="upload-left">
-            <h2 class="upload-title">Upload New Document</h2>
-            <p class="upload-description">
-              Add lab results, prescriptions, imaging reports, or any medical document to your digital booklet.
-            </p>
-            <button class="btn-upload" (click)="uploadDocument()">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                <polyline points="17 8 12 3 7 8"/>
-                <line x1="12" x2="12" y1="3" y2="15"/>
-              </svg>
-              Upload Document
-            </button>
+        <div class="upload-left">
+          <h2 class="upload-title">Manage Vitals</h2>
+          <p class="upload-description">Add records manually from a modal or import CSV template data.</p>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;">
+            <button class="btn-upload" (click)="openVitalsModal()">Add Vitals</button>
+            <button class="btn-upload" (click)="downloadTemplate()">Download Excel Template</button>
+            <label class="btn-upload" style="cursor:pointer;">
+              Import Template
+              <input type="file" accept=".csv" (change)="onTemplateImport($event)" hidden />
+            </label>
           </div>
-          <div class="upload-illustration">
-            <svg viewBox="0 0 200 150" xmlns="http://www.w3.org/2000/svg">
-              <defs>
-                <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" style="stop-color:#4ECDC4;stop-opacity:1" />
-                  <stop offset="100%" style="stop-color:#5FB3B3;stop-opacity:1" />
-                </linearGradient>
-              </defs>
-              <rect width="200" height="150" rx="12" fill="url(#bgGradient)"/>
-              
-              <!-- Document Icons -->
-              <g class="float-icon" transform="translate(40, 30)">
-                <rect width="30" height="36" rx="2" fill="white" opacity="0.9"/>
-                <line x1="8" y1="10" x2="22" y2="10" stroke="#4ECDC4" stroke-width="2"/>
-                <line x1="8" y1="16" x2="22" y2="16" stroke="#4ECDC4" stroke-width="2"/>
-                <line x1="8" y1="22" x2="16" y2="22" stroke="#4ECDC4" stroke-width="2"/>
-              </g>
-              
-              <g class="float-icon" transform="translate(130, 25)">
-                <circle cx="15" cy="15" r="14" fill="white" opacity="0.9"/>
-                <path d="M15 8 L15 22 M8 15 L22 15" stroke="#4ECDC4" stroke-width="2"/>
-              </g>
-              
-              <g class="float-icon" transform="translate(70, 85)">
-                <rect width="28" height="32" rx="2" fill="white" opacity="0.9"/>
-                <rect x="6" y="8" width="16" height="3" rx="1" fill="#4ECDC4"/>
-                <rect x="6" y="14" width="16" height="3" rx="1" fill="#4ECDC4"/>
-                <rect x="6" y="20" width="10" height="3" rx="1" fill="#4ECDC4"/>
-              </g>
-              
-              <g class="float-icon" transform="translate(140, 90)">
-                <rect width="24" height="28" rx="2" fill="white" opacity="0.9"/>
-                <path d="M8 8 L16 8 M8 14 L16 14 M8 20 L12 20" stroke="#4ECDC4" stroke-width="1.5"/>
-              </g>
-            </svg>
-          </div>
-        </div>
-      </section>
-
-      <!-- Search and Filter Bar -->
-      <section class="search-filter-section">
-        <div class="search-bar">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
-            <circle cx="11" cy="11" r="8"/>
-            <path d="m21 21-4.35-4.35"/>
-          </svg>
-          <input 
-            type="text" 
-            placeholder="Search documents..." 
-            [(ngModel)]="searchQuery"
-            (input)="onSearch()"
-            class="search-input"
-          >
-        </div>
-        <div class="filter-dropdown">
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="filter-icon">
-            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
-          </svg>
-          <select 
-            [(ngModel)]="selectedCategory"
-            (change)="onCategoryChange()"
-            class="category-select"
-          >
-            <option *ngFor="let cat of categories" [value]="cat.value">
-              {{ cat.label }}
-            </option>
-          </select>
+          <p *ngIf="csvError" style="color:#dc2626;margin-top:10px;">{{ csvError }}</p>
         </div>
       </section>
 
@@ -104,65 +33,52 @@
         <p>Loading your documents...</p>
       </div>
 
-      <!-- Documents Grid -->
       <section class="documents-grid" *ngIf="!loading">
-        <div 
-          class="document-card" 
-          *ngFor="let doc of filteredDocuments"
-          (click)="viewDocument(doc.id)"
-        >
-          <div class="card-header-color" [style.background]="doc.categoryColor"></div>
+        <div class="document-card" *ngFor="let vital of vitals; let i = index">
+          <div class="card-header-color" style="background:#2563eb;"></div>
           <div class="card-body">
-            <div class="doc-icon-large">
-              <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" [attr.stroke]="doc.categoryColor" stroke-width="2">
-                <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
-                <polyline points="14 2 14 8 20 8"/>
-              </svg>
-            </div>
-            <div class="card-content">
-              <span class="doc-category">{{ doc.category }}</span>
-              <h3 class="doc-title">{{ doc.title }}</h3>
-              <div class="doc-meta">
-                <span class="doc-date">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect width="18" height="18" x="3" y="4" rx="2" ry="2"/>
-                    <line x1="16" x2="16" y1="2" y2="6"/>
-                    <line x1="8" x2="8" y1="2" y2="6"/>
-                    <line x1="3" x2="21" y1="10" y2="10"/>
-                  </svg>
-                  {{ doc.date }}
-                </span>
-                <span class="doc-size" *ngIf="doc.fileSize !== 'N/A'">{{ doc.fileSize }}</span>
-              </div>
-            </div>
+            <h3 class="doc-title">{{ vital.recordedAt | date:'mediumDate' }}</h3>
+            <div class="doc-meta">Blood Pressure: {{ vital.bloodPressureMmHg }} mmHg</div>
+            <div class="doc-meta">Heart Rate: {{ vital.heartRateBpm }} bpm</div>
+            <div class="doc-meta">Temperature: {{ vital.temperatureCelsius }} C</div>
+            <div class="doc-meta">Height: {{ vital.heightCm }} cm</div>
+            <div class="doc-meta">Weight: {{ vital.weightKg }} kg</div>
+            <button class="btn-upload" style="margin-top:10px;background:#ef4444;" (click)="removeVital(i)">Delete</button>
           </div>
         </div>
       </section>
 
       <!-- Empty State -->
-      <div class="empty-state" *ngIf="!loading && filteredDocuments.length === 0">
+      <div class="empty-state" *ngIf="!loading && vitals.length === 0">
         <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="2" class="empty-icon">
           <circle cx="11" cy="11" r="8"/>
           <path d="m21 21-4.35-4.35"/>
         </svg>
-        <h3 class="empty-title">No documents found</h3>
-        <p class="empty-text" *ngIf="searchQuery || selectedCategory !== 'all'">
-          Try adjusting your search or filter criteria
-        </p>
-        <p class="empty-text" *ngIf="!searchQuery && selectedCategory === 'all'">
-          Upload your first medical document to get started
-        </p>
-        <button class="btn-upload" (click)="uploadDocument()" *ngIf="!searchQuery && selectedCategory === 'all'">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-            <polyline points="17 8 12 3 7 8"/>
-            <line x1="12" x2="12" y1="3" y2="15"/>
-          </svg>
-          Upload Document
-        </button>
+        <h3 class="empty-title">No vitals records yet</h3>
+        <p class="empty-text">Add your first vitals entry above or import the template.</p>
       </div>
     </div>
   </main>
+</div>
+
+<div class="modal-overlay" *ngIf="showVitalsModal" (click)="closeVitalsModal()">
+  <div class="modal-content" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>Add Vitals</h3>
+      <button class="btn-upload" style="background:#94a3b8;" (click)="closeVitalsModal()">Close</button>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(2,minmax(180px,1fr));gap:10px;">
+      <input type="date" class="search-input" [(ngModel)]="newVital.recordedAt" />
+      <input type="text" class="search-input" placeholder="Blood Pressure (e.g. 120/80)" [(ngModel)]="newVital.bloodPressureMmHg" />
+      <input type="number" class="search-input" placeholder="Heart Rate (bpm)" [(ngModel)]="newVital.heartRateBpm" />
+      <input type="number" class="search-input" placeholder="Temperature (C)" [(ngModel)]="newVital.temperatureCelsius" />
+      <input type="number" class="search-input" placeholder="Height (cm)" [(ngModel)]="newVital.heightCm" />
+      <input type="number" class="search-input" placeholder="Weight (kg)" [(ngModel)]="newVital.weightKg" />
+    </div>
+    <div style="display:flex;justify-content:flex-end;margin-top:12px;">
+      <button class="btn-upload" (click)="addVital()">Save Vitals</button>
+    </div>
+  </div>
 </div>
 
 <style>
@@ -204,5 +120,30 @@
 .loading-container p {
   color: #64748b;
   font-size: 0.95rem;
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+}
+
+.modal-content {
+  width: min(760px, 100%);
+  background: #fff;
+  border-radius: 14px;
+  padding: 20px;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
 }
 </style>

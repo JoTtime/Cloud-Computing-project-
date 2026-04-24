@@ -3,10 +3,12 @@ import { Component, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { SharedHeader } from '../../features/shared-header/shared-header';
 import { FormsModule } from '@angular/forms';
-import { forkJoin } from 'rxjs';
+import { catchError, forkJoin, map, of } from 'rxjs';
 import { MessageService } from '../../services/message';
 import { ConnectionService } from '../../services/connection';
 import { AppointmentService, Appointment as AppointmentModel } from '../../services/appointment.service';
+import { BillingService, Invoice } from '../../services/billing.service';
+import { DoctorService } from '../../services/doctor';
 
 
 interface Appointmentattributes {
@@ -23,6 +25,8 @@ interface Appointmentattributes {
   connectionId?: string;
   reason?: string;
   rawDate?: Date;
+  invoiceNumber?: string;
+  invoiceAmountFcfa?: number;
 }
 
 @Component({
@@ -50,7 +54,9 @@ export class Appointment implements OnInit{
     private router: Router,
     private messageService: MessageService,
     private connectionService: ConnectionService,
-    private appointmentService: AppointmentService
+    private appointmentService: AppointmentService,
+    private billingService: BillingService,
+    private doctorService: DoctorService
   ) {}
 
   ngOnInit(): void {
@@ -81,6 +87,7 @@ export class Appointment implements OnInit{
 
         // Build connection map first
         const connectionMap = new Map<string, string>();
+        const connectedDoctorDirectory = new Map<string, { firstName: string; lastName: string; specialty: string }>();
         if (connections.success && connections.connections) {
           connections.connections.forEach(conn => {
             if (conn.status === 'accepted') {
@@ -90,55 +97,29 @@ export class Appointment implements OnInit{
                 : conn.doctor._id || conn.doctor.id;
               
               connectionMap.set(doctorId, conn._id);
+              if (typeof conn.doctor === 'object' && conn.doctor) {
+                connectedDoctorDirectory.set(doctorId, {
+                  firstName: conn.doctor.firstName || '',
+                  lastName: conn.doctor.lastName || '',
+                  specialty: conn.doctor.specialty || 'General Practice'
+                });
+              }
               console.log(`📍 Mapped doctor ${doctorId} to connection ${conn._id}`);
             }
           });
         }
 
         // Transform appointments with connection IDs
-        if (appointments.success && appointments.appointments) {
-          this.appointments = appointments.appointments.map(apt => {
-            // Extract doctor ID from appointment
-            const doctorId = typeof apt.doctor === 'string'
-              ? apt.doctor
-              : apt.doctor._id || apt.doctor.id;
-            
-            const doctorFirstName = typeof apt.doctor === 'string' 
-              ? 'Doctor' 
-              : apt.doctor.firstName || 'Doctor';
-            const doctorLastName = typeof apt.doctor === 'string'
-              ? ''
-              : apt.doctor.lastName || '';
-            const specialty = typeof apt.doctor === 'string'
-              ? 'General Practice'
-              : apt.doctor.specialty || 'General Practice';
-
-            const connectionId = connectionMap.get(doctorId);
-            
-            console.log(`🔍 Appointment for doctor ${doctorId}: connectionId = ${connectionId}`);
-
-            return {
-              id: apt._id,
-              doctorId: doctorId,
-              doctorName: `Dr. ${doctorFirstName} ${doctorLastName}`.trim(),
-              specialty: specialty,
-              date: this.formatDate(apt.date),
-              time: apt.startTime,
-              location: apt.location || 'Video Call',
-              status: apt.status,
-              type: apt.type,
-              imageUrl: '',
-              reason: apt.reason,
-              rawDate: new Date(apt.date),
-              connectionId: connectionId // Already assigned here
-            };
-          });
-
-          console.log('✅ Final appointments with connections:', this.appointments);
-        }
-
-        this.filterAppointments();
-        this.isLoading = false;
+        const invoiceMap = new Map<string, Invoice>();
+        this.billingService.getMyInvoices().subscribe({
+          next: (billing) => {
+            (billing.invoices ?? []).forEach(invoice => invoiceMap.set(invoice.appointmentId, invoice));
+            this.applyAppointments(appointments, connectionMap, connectedDoctorDirectory, invoiceMap);
+          },
+          error: () => {
+            this.applyAppointments(appointments, connectionMap, connectedDoctorDirectory, invoiceMap);
+          }
+        });
       },
       error: (error) => {
         console.error('❌ Error loading data:', error);
@@ -146,6 +127,113 @@ export class Appointment implements OnInit{
         this.filterAppointments();
       }
     });
+  }
+
+  private applyAppointments(
+    appointments: any,
+    connectionMap: Map<string, string>,
+    connectedDoctorDirectory: Map<string, { firstName: string; lastName: string; specialty: string }>,
+    invoiceMap: Map<string, Invoice>
+  ): void {
+    if (!appointments.success || !appointments.appointments) {
+      this.filterAppointments();
+      this.isLoading = false;
+      return;
+    }
+
+    const appointmentList: AppointmentModel[] = appointments.appointments;
+    const doctorIdsToResolve = Array.from(new Set(
+      appointmentList
+        .map((apt) => (typeof apt.doctor === 'string' ? apt.doctor : apt.doctor?._id || apt.doctor?.id || ''))
+        .filter(Boolean)
+    ));
+
+    this.resolveDoctorDirectory(doctorIdsToResolve).subscribe({
+      next: (doctorDirectory) => {
+        this.appointments = appointmentList.map((apt: AppointmentModel) => {
+          const doctorId = typeof apt.doctor === 'string'
+            ? apt.doctor
+            : apt.doctor?._id || apt.doctor?.id || '';
+          const resolvedDoctor = doctorDirectory.get(doctorId);
+          const connectedDoctor = connectedDoctorDirectory.get(doctorId);
+
+          const doctorFirstName = (typeof apt.doctor === 'object' ? apt.doctor?.firstName : undefined)
+            || connectedDoctor?.firstName
+            || resolvedDoctor?.firstName
+            || 'Doctor';
+          const doctorLastName = (typeof apt.doctor === 'object' ? apt.doctor?.lastName : undefined)
+            || connectedDoctor?.lastName
+            || resolvedDoctor?.lastName
+            || '';
+          const specialty = (typeof apt.doctor === 'object' ? apt.doctor?.specialty : undefined)
+            || connectedDoctor?.specialty
+            || resolvedDoctor?.specialty
+            || 'General Practice';
+
+          const connectionId = connectionMap.get(doctorId);
+          const invoice = invoiceMap.get(apt._id);
+
+          return {
+            id: apt._id,
+            doctorId: doctorId,
+            doctorName: `Dr. ${doctorFirstName} ${doctorLastName}`.trim(),
+            specialty: specialty,
+            date: this.formatDate(apt.date),
+            time: apt.startTime,
+            location: apt.location || 'Video Call',
+            status: apt.status,
+            type: apt.type,
+            imageUrl: '',
+            reason: apt.reason,
+            rawDate: new Date(apt.date),
+            connectionId: connectionId,
+            invoiceNumber: invoice?.invoiceNumber,
+            invoiceAmountFcfa: invoice?.amount
+          };
+        });
+
+        this.filterAppointments();
+        this.isLoading = false;
+      },
+      error: () => {
+        this.filterAppointments();
+        this.isLoading = false;
+      }
+    });
+  }
+
+  private resolveDoctorDirectory(doctorIds: string[]) {
+    if (doctorIds.length === 0) {
+      return of(new Map<string, { firstName: string; lastName: string; specialty: string }>());
+    }
+
+    const requests = doctorIds.map((doctorId) =>
+      this.doctorService.getDoctorById(doctorId).pipe(
+        map((response) => ({
+          doctorId,
+          doctor: response.doctor
+            ? {
+                firstName: response.doctor.firstName || '',
+                lastName: response.doctor.lastName || '',
+                specialty: response.doctor.specialty || 'General Practice'
+              }
+            : null
+        })),
+        catchError(() => of({ doctorId, doctor: null }))
+      )
+    );
+
+    return forkJoin(requests).pipe(
+      map((results) => {
+        const directory = new Map<string, { firstName: string; lastName: string; specialty: string }>();
+        results.forEach((result) => {
+          if (result.doctor) {
+            directory.set(result.doctorId, result.doctor);
+          }
+        });
+        return directory;
+      })
+    );
   }
 
   formatDate(dateString: string): string {

@@ -3,6 +3,10 @@ import { Component } from '@angular/core';
 import { SharedHeader } from '../../features/shared-header/shared-header';
 import { RouterLink } from "@angular/router";
 import { AppointmentService, Appointment } from '../../services/appointment.service';
+import { BillingService, Invoice } from '../../services/billing.service';
+import { PatientProfileService, PatientProfile } from '../../services/patient-profile';
+import { ConnectionService } from '../../services/connection';
+import { catchError, forkJoin, map, Observable, of } from 'rxjs';
 
 interface AppointmentDisplay {
   time: string;
@@ -15,6 +19,8 @@ interface AppointmentDisplay {
   patientId: string;
   date: Date;
   reason: string;
+  invoiceAmountFcfa?: number;
+  invoiceNumber?: string;
 }
 
 interface WeeklyStat {
@@ -45,11 +51,21 @@ export class Schedule {
   teleconsultCount: number = 0;
   
   isLoading: boolean = false;
+  generatingInvoiceId: string | null = null;
+  private invoicesByAppointment = new Map<string, Invoice>();
+  private patientsById = new Map<string, PatientProfile>();
+  private patientNamesById = new Map<string, string>();
 
-  constructor(private appointmentService: AppointmentService) {}
+  constructor(
+    private appointmentService: AppointmentService,
+    private billingService: BillingService,
+    private patientProfileService: PatientProfileService,
+    private connectionService: ConnectionService
+  ) {}
 
   ngOnInit(): void {
     this.loadUserInfo();
+    this.loadConnectedPatientNames();
     this.loadAppointmentsForDate(this.selectedDate);
     this.generateWeeklyStats();
   }
@@ -75,20 +91,25 @@ export class Schedule {
         console.log('📦 Raw API response:', response);
         
         if (response.success && response.appointments) {
+          const appointments = response.appointments;
           console.log('✅ Appointments received:', response.appointments.length);
           console.log('📋 First appointment sample:', response.appointments[0]);
           
-          this.appointments = this.transformAppointments(response.appointments);
-          
-          console.log('✅ Transformed appointments:', this.appointments.length);
-          console.log('📊 Appointments list:', this.appointments);
-          
-          this.calculateStats();
+          this.resolvePatients(appointments).subscribe({
+            next: () => {
+              const transformed = this.transformAppointments(appointments);
+              this.loadInvoices(transformed);
+            },
+            error: () => {
+              const transformed = this.transformAppointments(appointments);
+              this.loadInvoices(transformed);
+            }
+          });
         } else {
           console.log('⚠️ No appointments in response');
           this.appointments = [];
+          this.isLoading = false;
         }
-        this.isLoading = false;
       },
       error: (error) => {
         console.error('❌ Error loading appointments:', error);
@@ -117,23 +138,12 @@ export class Schedule {
         });
 
         // Handle patient data - could be populated object or just an ID
-        let patientFirstName = 'Unknown';
-        let patientLastName = 'Patient';
-        let patientId = '';
-
-        if (typeof apt.patient === 'string') {
-          console.log('⚠️ Patient is just an ID:', apt.patient);
-          patientId = apt.patient;
-        } else if (apt.patient && typeof apt.patient === 'object') {
-          patientFirstName = apt.patient.firstName || 'Unknown';
-          patientLastName = apt.patient.lastName || 'Patient';
-          patientId = apt.patient._id || apt.patient.id || '';
-          console.log('✓ Patient populated:', patientFirstName, patientLastName);
-        }
+        const patientId = this.extractPatientId(apt.patient);
+        const patientName = this.resolvePatientName(apt.patient, patientId);
 
         const display: AppointmentDisplay = {
           time: apt.startTime,
-          patient: `${patientFirstName} ${patientLastName}`,
+          patient: patientName,
           type: apt.reason || 'Consultation',
           duration: this.calculateDuration(apt.startTime, apt.endTime),
           status: this.mapStatus(apt.status),
@@ -143,6 +153,12 @@ export class Schedule {
           date: new Date(apt.date),
           reason: apt.reason || 'Consultation'
         };
+
+        const invoice = this.invoicesByAppointment.get(apt._id);
+        if (invoice) {
+          display.invoiceAmountFcfa = invoice.amount;
+          display.invoiceNumber = invoice.invoiceNumber;
+        }
 
         console.log('✓ Transformed to:', display);
         return display;
@@ -159,6 +175,141 @@ export class Schedule {
 
     console.log(`✅ Final transformed appointments: ${transformed.length}`);
     return transformed;
+  }
+
+  private extractPatientId(rawPatient: any): string {
+    if (!rawPatient) return '';
+    if (typeof rawPatient === 'string') return rawPatient;
+    return rawPatient._id || rawPatient.id || rawPatient.userId || '';
+  }
+
+  private resolvePatientName(rawPatient: any, patientId: string): string {
+    if (rawPatient && typeof rawPatient === 'object') {
+      const directName = `${rawPatient.firstName || ''} ${rawPatient.lastName || ''}`.trim();
+      if (directName) return directName;
+    }
+
+    if (patientId && this.patientNamesById.has(patientId)) {
+      const connectedName = this.patientNamesById.get(patientId);
+      if (connectedName && connectedName.trim()) {
+        return connectedName.trim();
+      }
+    }
+
+    if (patientId && this.patientsById.has(patientId)) {
+      const patient = this.patientsById.get(patientId)!;
+      const profileName = `${patient.firstName || ''} ${patient.lastName || ''}`.trim();
+      if (profileName && profileName.toLowerCase() !== 'patient user') return profileName;
+    }
+
+    return 'Unknown Patient';
+  }
+
+  private loadConnectedPatientNames(): void {
+    this.connectionService.getDoctorConnections().subscribe({
+      next: (response) => {
+        if (!response.success || !response.connections) return;
+
+        response.connections.forEach(conn => {
+          const rawPatient = conn?.patient as any;
+          if (!rawPatient) return;
+
+          const patientId = rawPatient._id || rawPatient.id || rawPatient.userId;
+          const patientName = `${rawPatient.firstName || ''} ${rawPatient.lastName || ''}`.trim();
+
+          if (patientId && patientName) {
+            this.patientNamesById.set(patientId, patientName);
+          }
+        });
+      },
+      error: () => {
+        // Keep schedule functional even if connection fetch fails.
+      }
+    });
+  }
+
+  private resolvePatients(appointments: Appointment[]): Observable<void> {
+    const patientIds = Array.from(new Set(
+      appointments.map(apt => this.extractPatientId(apt.patient)).filter(Boolean)
+    ));
+
+    if (patientIds.length === 0) {
+      return of(void 0);
+    }
+
+    const lookups = patientIds.map(patientId =>
+      this.patientProfileService.getPatientById(patientId).pipe(
+        map(response => ({ patientId, patient: response.patient })),
+        catchError(() => of({ patientId, patient: null }))
+      )
+    );
+
+    return forkJoin(lookups).pipe(
+      map(results => {
+        results.forEach(({ patientId, patient }) => {
+          if (patient) {
+            this.patientsById.set(patientId, patient);
+          }
+        });
+        return void 0;
+      })
+    );
+  }
+
+  private loadInvoices(transformedAppointments: AppointmentDisplay[]): void {
+    this.billingService.getMyInvoices().subscribe({
+      next: (result) => {
+        this.invoicesByAppointment.clear();
+        (result.invoices ?? []).forEach(invoice => {
+          this.invoicesByAppointment.set(invoice.appointmentId, invoice);
+        });
+        this.appointments = transformedAppointments.map(appt => {
+          const invoice = this.invoicesByAppointment.get(appt.appointmentId);
+          return {
+            ...appt,
+            invoiceAmountFcfa: invoice?.amount,
+            invoiceNumber: invoice?.invoiceNumber
+          };
+        });
+        this.calculateStats();
+        this.isLoading = false;
+      },
+      error: () => {
+        this.appointments = transformedAppointments;
+        this.calculateStats();
+        this.isLoading = false;
+      }
+    });
+  }
+
+  generateInvoice(appointmentId: string): void {
+    if (this.generatingInvoiceId) return;
+    this.generatingInvoiceId = appointmentId;
+    this.billingService.generateInvoice(appointmentId).subscribe({
+      next: (response) => {
+        if (response.success) {
+          this.loadAppointmentsForDate(this.selectedDate);
+        }
+      },
+      error: (error) => {
+        console.error('❌ Error generating invoice:', error);
+        const serverMsg =
+          error?.error?.message ||
+          error?.error?.error ||
+          (typeof error?.error === 'string' ? error.error : null);
+        const hint =
+          error?.status === 400 || error?.status === 502 || error?.status === 503
+            ? ''
+            : ' If this persists, confirm appointment (8087) and doctor (8088) services are running, and set a consultation fee in doctor account settings.';
+        alert(
+          (serverMsg ? String(serverMsg) : 'Unable to generate invoice.') + hint
+        );
+        this.generatingInvoiceId = null;
+      },
+      complete: () => {
+        this.generatingInvoiceId = null;
+      }
+    });
   }
 
   calculateDuration(start: string, end: string): string {
